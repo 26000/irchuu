@@ -2,10 +2,10 @@
 A Telegram<->IRC transport.
 
 ## Roadmap
-- [ ] Basics: DB, logging, config reading
+- [x] Basics: config reading
 
 - [ ] Joining IRC channels: join, wait for an invite, join with a password
-- [ ] Joining Telegram group: leave if not in config
+- [x] Joining Telegram group: leave if not in config
 
 - [ ] Relaying IRC messages to Telegram
 - [ ] Relaying Telegram messages to IRC
@@ -17,7 +17,7 @@ A Telegram<->IRC transport.
 - [ ] Moderation of the IRC channel from Telegram
 - [ ] Main administrator settings
 
-- [ ] Logging to a DB
+- [ ] Logging to a file
 - [ ] Showing the original message
 - [ ] Showing `tail -n n` in IRC on query
 
