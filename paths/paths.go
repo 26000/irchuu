@@ -8,8 +8,7 @@ import (
 	"path"
 )
 
-// GetPaths gets config file and data directory paths, creating directories and
-// the config file if needed.
+// GetPaths gets config file and data directory paths.
 func GetPaths() (configFile string, dataDir string) {
 	usr, err := user.Current()
 	if err != nil {
@@ -28,30 +27,47 @@ func GetPaths() (configFile string, dataDir string) {
 	} else {
 		configFile = path.Join(xdgConfig, "irchuu.conf")
 	}
-
-	CreateDirOrExit(dataDir, os.FileMode(0700))
-	CreateDirOrExit(path.Dir(configFile), os.FileMode(0700))
-	_, err = os.Stat(configFile)
-	if err != nil {
-		err = PopulateConfig(configFile)
-	}
-	if err != nil {
-		log.Fatalf("Failed to populate config: %v\n", err)
-	}
 	return
 }
 
-// CreateDirOrExit creates the directory if it doesn't exist, exits if failed.
-func CreateDirOrExit(dir string, mode os.FileMode) {
+// MakePaths creates the configuration file and directories if needed.
+func MakePaths(configFile string, dataDir string) error {
+	err := CreateDir(dataDir, os.FileMode(0700))
+	if err != nil {
+		log.Printf("Failed to create directory: %v\n", dataDir)
+		return err
+	}
+	err = CreateDir(path.Dir(configFile), os.FileMode(0700))
+	if err != nil {
+		log.Printf("Failed to create directory: %v\n", path.Dir(configFile))
+		return err
+	}
+
+	_, err = os.Stat(configFile)
+	if err != nil {
+		err = PopulateConfig(configFile)
+		if err == nil {
+			log.Printf("New configuration file was populated. Edit %v and run `irchuu` again!\n", configFile)
+			defer os.Exit(0)
+		} else {
+			log.Fatalf("Failed to populate config: %v\n", err)
+		}
+	}
+	return nil
+}
+
+// CreateDir creates the directory if it doesn't exist.
+func CreateDir(dir string, mode os.FileMode) error {
 	_, err := os.Stat(dir)
 	if err != nil {
 		err = os.MkdirAll(dir, mode)
 		if err != nil {
-			log.Fatalf("Failed to create directory: %v\n", dir)
+			return err
 		} else {
 			log.Printf("Created directory: %v\n", dir)
 		}
 	}
+	return nil
 }
 
 // PopulateConfig copies the sample config to <path>.
@@ -64,8 +80,8 @@ group = 7654321
 [irc]
 server = irc.rizon.net
 port = 6777
-channel = #irchuu
-password =
+channel = irchuu # without '#'!
+password = # leave blank if not set
 `
 	return ioutil.WriteFile(file, []byte(config), os.FileMode(0600))
 }
