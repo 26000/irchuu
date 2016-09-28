@@ -1,13 +1,13 @@
 package main
 
 import (
+	"fmt"
 	"github.com/26000/irchuu/config"
 	"github.com/26000/irchuu/paths"
-	//"github.com/26000/irchuu/telegram"
-	"fmt"
+	"github.com/26000/irchuu/telegram"
 	"log"
 	"os"
-	//"sync"
+	"sync"
 )
 
 const VERSION = "0.0.0"
@@ -28,12 +28,9 @@ func main() {
 		log.Fatalf("Unable to parse the config: %v\n", err)
 	}
 	println(irc.Channel)
-	println(tg.Token)
 
-	/*
-		var wg sync.WaitGroup
-		wg.Add(1)
-		go telegram.Launch("c", &wg)
-		wg.Wait()
-	*/
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go telegram.Launch(tg, &wg)
+	wg.Wait()
 }

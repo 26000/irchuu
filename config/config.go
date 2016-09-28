@@ -9,6 +9,7 @@ import (
 // ReadConfig reads the configuration file.
 func ReadConfig(path string) (error, *Irc, *Telegram) {
 	cfg, err := ini.InsensitiveLoad(path)
+	cfg.BlockMode = false
 	tg, irc := new(Telegram), new(Irc)
 	err = cfg.Section("telegram").MapTo(tg)
 	if err != nil {
@@ -48,5 +49,5 @@ type Irc struct {
 // Telegram is the struct of Telegram part in config.
 type Telegram struct {
 	Token string
-	Group int
+	Group int64
 }
