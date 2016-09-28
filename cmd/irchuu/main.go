@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/26000/irchuu/config"
+	"github.com/26000/irchuu/irc"
 	"github.com/26000/irchuu/paths"
 	"github.com/26000/irchuu/telegram"
 	"log"
@@ -27,10 +28,10 @@ func main() {
 	if err != nil {
 		log.Fatalf("Unable to parse the config: %v\n", err)
 	}
-	println(irc.Channel)
 
 	var wg sync.WaitGroup
-	wg.Add(1)
+	wg.Add(2)
+	go irchuu.Launch(irc, &wg)
 	go telegram.Launch(tg, &wg)
 	wg.Wait()
 }

@@ -31,9 +31,13 @@ group = 7654321
 
 [irc]
 server = irc.rizon.net
-port = 6777
-channel = irchuu # without '#'!
+port = 6667
+ssl = false
 password = # leave blank if not set
+
+nick = irchuu
+channel = irchuu # without '#'!
+chanpassword = # leave blank if not set
 `
 	return ioutil.WriteFile(file, []byte(config), os.FileMode(0600))
 }
@@ -42,8 +46,12 @@ password = # leave blank if not set
 type Irc struct {
 	Server   string
 	Port     uint16
-	Channel  string
+	SSL      bool
 	Password string
+
+	Nick         string
+	Channel      string
+	ChanPassword string
 }
 
 // Telegram is the struct of Telegram part in config.
