@@ -1,7 +1,7 @@
 package paths
 
 import (
-	"io/ioutil"
+	"github.com/26000/irchuu/config"
 	"log"
 	"os"
 	"os/user"
@@ -45,7 +45,7 @@ func MakePaths(configFile string, dataDir string) error {
 
 	_, err = os.Stat(configFile)
 	if err != nil {
-		err = PopulateConfig(configFile)
+		err = config.PopulateConfig(configFile)
 		if err == nil {
 			log.Printf("New configuration file was populated. Edit %v and run `irchuu` again!\n", configFile)
 			defer os.Exit(0)
@@ -68,20 +68,4 @@ func CreateDir(dir string, mode os.FileMode) error {
 		}
 	}
 	return nil
-}
-
-// PopulateConfig copies the sample config to <path>.
-func PopulateConfig(file string) error {
-	config := `# IRChuu configuration file. See https://github.com/26000/irchuu for help.
-[telegram]
-token = myToken
-group = 7654321
-
-[irc]
-server = irc.rizon.net
-port = 6777
-channel = irchuu # without '#'!
-password = # leave blank if not set
-`
-	return ioutil.WriteFile(file, []byte(config), os.FileMode(0600))
 }
