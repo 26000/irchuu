@@ -17,23 +17,31 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay) {
 	logger := log.New(os.Stdout, "IRC ", log.LstdFlags)
 	irchuu := irc.IRC(c.Nick, "IRChuu~")
 	irchuu.UseTLS = c.SSL
-	irchuu.Password = c.Password
+	irchuu.Password = c.ServerPassword
+
+	if c.SASL {
+		irchuu.UseSASL = true
+		irchuu.SASLLogin = c.Nick
+		irchuu.SASLPassword = c.Password
+	}
+
 	irchuu.Log = logger
+	irchuu.QuitMessage = "IRChuu!bye"
+	irchuu.Version = fmt.Sprintf("IRChuu! v%v (https://github.com/26000/irchuu), based on %v", config.VERSION, irc.VERSION)
 
-	go logErrors(logger, irchuu.ErrorChan())
+	//go logErrors(logger, irchuu.ErrorChan())
 
-	irchuu.ReplaceCallback("CTCP VERSION", 0, func(event *irc.Event) {
-		logger.Printf("Incoming CTCP_VERSION from %v\n", event.Nick)
-		irchuu.Noticef(event.Nick, "\001VERSION IRChuu! v%v (https://github.com/26000/irchuu), based on %v\001", config.VERSION, irc.VERSION)
+	irchuu.AddCallback("CTCP_VERSION", func(event *irc.Event) {
+		logger.Printf("CTCP VERSION from %v\n", event.Nick)
 	})
 
 	irchuu.AddCallback("CTCP", func(event *irc.Event) {
-		logger.Printf("Incoming unknown CTCP %v from %v\n", event.Arguments[1], event.Nick)
+		logger.Printf("Unknown CTCP %v from %v\n", event.Arguments[1], event.Nick)
 	})
 
 	irchuu.AddCallback("INVITE", func(event *irc.Event) {
 		logger.Printf("Invited to %v by %v\n", event.Arguments[1], event.Nick)
-		if c.Channel == event.Arguments[0] {
+		if "#"+c.Channel == event.Arguments[1] {
 			irchuu.Join(fmt.Sprintf("#%v %v", c.Channel, c.ChanPassword))
 		}
 	})
@@ -44,12 +52,30 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay) {
 				Nick: event.Nick,
 				Text: event.Message(),
 			}
+		} else {
+			logger.Printf("Message from %v: %v\n",
+				event.Nick, event.Message())
 		}
+	})
+
+	irchuu.AddCallback("NOTICE", func(event *irc.Event) {
+		logger.Printf("Notice from %v: %v\n",
+			event.Nick, event.Message())
+	})
+
+	// SASL Authentication status
+	irchuu.AddCallback("903", func(event *irc.Event) {
+		logger.Printf("%v\n", event.Arguments[1])
 	})
 
 	// Errors
 	irchuu.AddCallback("461", func(event *irc.Event) {
 		logger.Printf("Error: ERR_NEEDMOREPARAMS\n")
+	})
+
+	irchuu.AddCallback("433", func(event *irc.Event) {
+		logger.Printf("Nickname already in use, changed to %v\n", irchuu.GetNick())
+		irchuu.Join(fmt.Sprintf("#%v %v", c.Channel, c.ChanPassword))
 	})
 
 	irchuu.AddCallback("473", func(event *irc.Event) {
@@ -82,8 +108,13 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay) {
 
 	err := irchuu.Connect(fmt.Sprintf("%v:%d", c.Server, c.Port))
 	if err != nil {
-		logger.Printf("Cannot connect: %v\n", err)
+		logger.Fatalf("Cannot connect: %v\n", err)
 	}
+
+	if !c.SASL {
+		irchuu.Privmsgf("NickServ", "IDENTIFY %v", c.Password)
+	}
+
 	irchuu.Join(fmt.Sprintf("#%v %v", c.Channel, c.ChanPassword))
 	go relayMessagesToIRC(r, c, irchuu)
 }

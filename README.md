@@ -6,6 +6,8 @@ A Telegram<->IRC transport.
 
 - [x] Joining IRC channels: join, wait for an invite, join with a password
 - [x] Joining Telegram group: leave wrong groups
+- [x] NickServ login for IRC
+- [x] SASL login for IRC
 
 - [x] Relaying IRC messages to Telegram
 - [x] Relaying Telegram messages to IRC

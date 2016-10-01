@@ -35,9 +35,12 @@ group = 7654321
 server = irc.rizon.net
 port = 6667
 ssl = false
-password = # leave blank if not set
+serverpassword = # leave blank if not set
 
 nick = irchuu
+password = # if not blank, will use NickServ to identify
+sasl = false # if true, will use SASL instead of NickServ
+
 channel = irchuu # without '#'!
 chanpassword = # leave blank if not set
 `
@@ -46,12 +49,15 @@ chanpassword = # leave blank if not set
 
 // Irc is the stuct of IRC part in config.
 type Irc struct {
-	Server   string
-	Port     uint16
-	SSL      bool
-	Password string
+	Server         string
+	Port           uint16
+	SSL            bool
+	ServerPassword string
 
-	Nick         string
+	Nick     string
+	Password string
+	SASL     bool
+
 	Channel      string
 	ChanPassword string
 }
