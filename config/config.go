@@ -6,6 +6,8 @@ import (
 	"os"
 )
 
+const VERSION = "0.0.0"
+
 // ReadConfig reads the configuration file.
 func ReadConfig(path string) (error, *Irc, *Telegram) {
 	cfg, err := ini.InsensitiveLoad(path)
