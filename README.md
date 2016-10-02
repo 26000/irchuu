@@ -11,7 +11,7 @@ A Telegram<->IRC transport.
 
 - [x] Relaying IRC messages to Telegram
 - [x] Relaying Telegram messages to IRC
-- [ ] Coloured nicknames
+- [x] Coloured nicknames
 - [ ] Preserve formatted text
 - [ ] Replies, forwards support
 - [ ] Documents: serving them as links in IRC

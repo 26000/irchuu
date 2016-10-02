@@ -32,7 +32,7 @@ func Launch(c *config.Telegram, wg *sync.WaitGroup, r *relay.Relay) {
 		}
 
 		if update.Message.Chat.Type != "private" {
-			go processChatMessage(bot, c, update.Message, logger, r)
+			processChatMessage(bot, c, update.Message, logger, r)
 		} else {
 			processPM(bot, c, update.Message, logger)
 		}

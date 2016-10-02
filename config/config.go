@@ -43,6 +43,9 @@ sasl = false # if true, will use SASL instead of NickServ
 
 channel = irchuu # without '#'!
 chanpassword = # leave blank if not set
+
+colorize = true # colorize nicknames? (based on djb2)
+palette = 1,2,3,4,5,6,9,10,11,12,13 # colors to be used, either codes or names
 `
 	return ioutil.WriteFile(file, []byte(config), os.FileMode(0600))
 }
@@ -60,6 +63,9 @@ type Irc struct {
 
 	Channel      string
 	ChanPassword string
+
+	Colorize bool
+	Palette  []string
 }
 
 // Telegram is the struct of Telegram part in config.

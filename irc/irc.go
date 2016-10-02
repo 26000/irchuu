@@ -111,7 +111,7 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay) {
 		logger.Fatalf("Cannot connect: %v\n", err)
 	}
 
-	if !c.SASL {
+	if !c.SASL && c.Password != "" {
 		irchuu.Privmsgf("NickServ", "IDENTIFY %v", c.Password)
 	}
 
@@ -123,7 +123,13 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay) {
 // into IRC.
 func relayMessagesToIRC(r *relay.Relay, c *config.Irc, irchuu *irc.Connection) {
 	for message := range r.TeleCh {
-		irchuu.Privmsgf("#"+c.Channel, "<%v> %v", message.Nick, message.Text)
+		var nick string
+		if c.Colorize {
+			nick = getColoredNick(message.Nick, c)
+		} else {
+			nick = message.Nick
+		}
+		irchuu.Privmsgf("#"+c.Channel, "<%v> %v", nick, message.Text)
 	}
 }
 
@@ -132,4 +138,22 @@ func logErrors(logger *log.Logger, ch chan error) {
 	for e := range ch {
 		logger.Printf("Error: %v\n", e)
 	}
+}
+
+// djb2 hashes the string and returns an integer.
+func djb2(nick string) int {
+	hash := 5381
+	for s := 0; s < len(nick); s++ {
+		hash = ((hash << 5) + hash) + int(nick[s])
+	}
+	return hash
+}
+
+// getColoredNick adds color codes to the nickname.
+func getColoredNick(s string, c *config.Irc) string {
+	i := djb2(s) % len(c.Palette)
+	if i < 0 {
+		i += len(c.Palette)
+	}
+	return "\x03" + c.Palette[i] + s + "\x03"
 }
