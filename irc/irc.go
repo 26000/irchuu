@@ -31,31 +31,13 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay) {
 
 	//go logErrors(logger, irchuu.ErrorChan())
 
+	/* START CALLBACKS */
 	irchuu.AddCallback("CTCP_VERSION", func(event *irc.Event) {
 		logger.Printf("CTCP VERSION from %v\n", event.Nick)
 	})
 
 	irchuu.AddCallback("CTCP", func(event *irc.Event) {
 		logger.Printf("Unknown CTCP %v from %v\n", event.Arguments[1], event.Nick)
-	})
-
-	irchuu.AddCallback("INVITE", func(event *irc.Event) {
-		logger.Printf("Invited to %v by %v\n", event.Arguments[1], event.Nick)
-		if "#"+c.Channel == event.Arguments[1] {
-			irchuu.Join(fmt.Sprintf("#%v %v", c.Channel, c.ChanPassword))
-		}
-	})
-
-	irchuu.AddCallback("PRIVMSG", func(event *irc.Event) {
-		if event.Arguments[0] == "#"+c.Channel {
-			r.IRCh <- relay.Message{
-				Nick: event.Nick,
-				Text: event.Message(),
-			}
-		} else {
-			logger.Printf("Message from %v: %v\n",
-				event.Nick, event.Message())
-		}
 	})
 
 	irchuu.AddCallback("NOTICE", func(event *irc.Event) {
@@ -106,17 +88,46 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay) {
 		logger.Printf("Error: ERR_TOOMANYCHANNELS\n")
 	})
 
+	irchuu.AddCallback("INVITE", func(event *irc.Event) {
+		logger.Printf("Invited to %v by %v\n", event.Arguments[1], event.Nick)
+		if "#"+c.Channel == event.Arguments[1] {
+			irchuu.Join(fmt.Sprintf("#%v %v", c.Channel, c.ChanPassword))
+		}
+	})
+
+	// On joined...
+	irchuu.AddCallback("353", func(event *irc.Event) {
+		logger.Printf("Joined %v. Users online: %v\n", event.Arguments[2], event.Arguments[3])
+		go relayMessagesToIRC(r, c, irchuu)
+	})
+
+	irchuu.AddCallback("PRIVMSG", func(event *irc.Event) {
+		if event.Arguments[0] == "#"+c.Channel {
+			r.IRCh <- relay.Message{
+				Nick: event.Nick,
+				Text: event.Message(),
+			}
+		} else {
+			logger.Printf("Message from %v: %v\n",
+				event.Nick, event.Message())
+		}
+	})
+
+	// On connected...
+	irchuu.AddCallback("001", func(event *irc.Event) {
+		if !c.SASL && c.Password != "" {
+			logger.Println("Trying to authenticate via NickServ")
+			irchuu.Privmsgf("NickServ", "IDENTIFY %v", c.Password)
+		}
+
+		irchuu.Join(fmt.Sprintf("#%v %v", c.Channel, c.ChanPassword))
+	})
+	/* CALLBACKS END */
+
 	err := irchuu.Connect(fmt.Sprintf("%v:%d", c.Server, c.Port))
 	if err != nil {
 		logger.Fatalf("Cannot connect: %v\n", err)
 	}
-
-	if !c.SASL && c.Password != "" {
-		irchuu.Privmsgf("NickServ", "IDENTIFY %v", c.Password)
-	}
-
-	irchuu.Join(fmt.Sprintf("#%v %v", c.Channel, c.ChanPassword))
-	go relayMessagesToIRC(r, c, irchuu)
 }
 
 // relayMessagesToIRC listens to the Telegram channel and sends every message
