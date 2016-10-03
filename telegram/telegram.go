@@ -97,8 +97,8 @@ func formatTGMessage(message relay.Message, c *config.Telegram) tgbotapi.Message
 		m = tgbotapi.NewMessage(c.Group, fmt.Sprintf("*<b>%v</b> %v*",
 			message.Nick, message.Text))
 	} else {
-		m = tgbotapi.NewMessage(c.Group, fmt.Sprintf("<b>%v</b>: %v",
-			message.Nick, message.Text))
+		m = tgbotapi.NewMessage(c.Group, fmt.Sprintf("%s<b>%v</b>%s %v",
+			c.Prefix, message.Nick, c.Postfix, message.Text))
 	}
 	m.ParseMode = "HTML"
 	return m

@@ -2,6 +2,7 @@ package config
 
 import (
 	"gopkg.in/ini.v1"
+	"html"
 	"io/ioutil"
 	"os"
 )
@@ -21,6 +22,10 @@ func ReadConfig(path string) (error, *Irc, *Telegram) {
 	if err != nil {
 		return err, irc, tg
 	}
+
+	tg.Prefix = html.EscapeString(tg.Prefix)
+	tg.Postfix = html.EscapeString(tg.Postfix)
+
 	return nil, irc, tg
 }
 
@@ -33,6 +38,9 @@ group = 7654321
 
 TTL = 300 # (seconds) If message was sent more than <TTL> seconds ago, it won't be relayed
           # 0 to disable
+
+prefix = < # will be added before nicks
+postfix = > # will be added after nicks
 
 [irc]
 server = irc.rizon.net
@@ -77,4 +85,7 @@ type Telegram struct {
 	Group int64
 
 	TTL int64
+
+	Prefix  string
+	Postfix string
 }
