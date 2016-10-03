@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"sync"
+	"time"
 )
 
 // Launch starts the IRC bot and waits for messages.
@@ -96,20 +97,38 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay) {
 	})
 
 	// On joined...
-	irchuu.AddCallback("353", func(event *irc.Event) {
-		logger.Printf("Joined %v. Users online: %v\n", event.Arguments[2], event.Arguments[3])
+	irchuu.AddCallback("366", func(event *irc.Event) {
+		logger.Printf("Joined %v\n", event.Arguments[1])
 		go relayMessagesToIRC(r, c, irchuu)
 	})
 
 	irchuu.AddCallback("PRIVMSG", func(event *irc.Event) {
 		if event.Arguments[0] == "#"+c.Channel {
-			r.IRCh <- relay.Message{
-				Nick: event.Nick,
-				Text: event.Message(),
-			}
+			r.IRCh <- formatMessage(event.Nick, event.Message(), "")
 		} else {
 			logger.Printf("Message from %v: %v\n",
 				event.Nick, event.Message())
+		}
+	})
+
+	irchuu.AddCallback("CTCP_ACTION", func(event *irc.Event) {
+		if event.Arguments[0] == "#"+c.Channel {
+			r.IRCh <- formatMessage(event.Nick, event.Message(), "ACTION")
+		} else {
+			logger.Printf("CTCP ACTION from %v: %v\n",
+				event.Nick, event.Message())
+		}
+	})
+
+	irchuu.AddCallback("KICK", func(event *irc.Event) {
+		if event.Arguments[0] == "#"+c.Channel {
+			r.IRCh <- formatMessage(event.Nick, event.Arguments[1], "KICK")
+		}
+	})
+
+	irchuu.AddCallback("TOPIC", func(event *irc.Event) {
+		if event.Arguments[0] == "#"+c.Channel {
+			r.IRCh <- formatMessage(event.Nick, event.Arguments[1], "TOPIC")
 		}
 	})
 
@@ -132,6 +151,7 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay) {
 
 // relayMessagesToIRC listens to the Telegram channel and sends every message
 // into IRC.
+// TODO: message format, no nick fallback
 func relayMessagesToIRC(r *relay.Relay, c *config.Irc, irchuu *irc.Connection) {
 	for message := range r.TeleCh {
 		var nick string
@@ -141,6 +161,29 @@ func relayMessagesToIRC(r *relay.Relay, c *config.Irc, irchuu *irc.Connection) {
 			nick = message.Nick
 		}
 		irchuu.Privmsgf("#"+c.Channel, "<%v> %v", nick, message.Text)
+	}
+}
+
+// formatMessage creates a Message in the universal format of an IRC message.
+func formatMessage(nick string, text string, action string) relay.Message {
+	extra := make(map[string]string)
+
+	switch action {
+	case "":
+	case "ACTION":
+		extra["CTCP"] = "ACTION"
+	case "KICK":
+		extra["KICK"] = "true"
+	case "TOPIC":
+		extra["TOPIC"] = "true"
+	}
+
+	return relay.Message{
+		Source: "IRC",
+		Nick:   nick,
+		Text:   text,
+		Date:   time.Now().Unix(),
+		Extra:  extra,
 	}
 }
 
