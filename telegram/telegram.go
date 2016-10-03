@@ -5,9 +5,11 @@ import (
 	"github.com/26000/irchuu/config"
 	"github.com/26000/irchuu/relay"
 	"gopkg.in/telegram-bot-api.v4"
+	"html"
 	"log"
 	"os"
 	"sync"
+	"time"
 )
 
 // Launch launches the Telegram bot and receives updates in an endless loop.
@@ -49,7 +51,9 @@ func processChatMessage(bot *tgbotapi.BotAPI, c *config.Telegram, message *tgbot
 		bot.LeaveChat(tgbotapi.ChatConfig{ChatID: message.Chat.ID})
 		return
 	}
-	r.TeleCh <- formatMessage(message)
+	if c.TTL == 0 || c.TTL > (time.Now().Unix()-int64(message.Date)) {
+		r.TeleCh <- formatMessage(message)
+	}
 }
 
 // processPM replies to private messages from Telegram, sending them info
@@ -72,10 +76,32 @@ func processPM(bot *tgbotapi.BotAPI, c *config.Telegram, message *tgbotapi.Messa
 // Telegram.
 func relayMessagesToTG(r *relay.Relay, c *config.Telegram, bot *tgbotapi.BotAPI) {
 	for message := range r.IRCh {
-		m := tgbotapi.NewMessage(c.Group, fmt.Sprintf("<%v> %v",
-			message.Nick, message.Text))
+		m := formatTGMessage(message, c)
 		bot.Send(m)
 	}
+}
+
+// formatTGMessage translates a universal message into Telegram's one.
+func formatTGMessage(message relay.Message, c *config.Telegram) tgbotapi.MessageConfig {
+	message.Text = html.EscapeString(message.Text)
+	var m tgbotapi.MessageConfig
+	if message.Extra["TOPIC"] != "" {
+		m = tgbotapi.NewMessage(c.Group,
+			fmt.Sprintf("<b>%v</b> has set a new topic: %v",
+				message.Nick, message.Text))
+	} else if message.Extra["KICK"] != "" {
+		m = tgbotapi.NewMessage(c.Group,
+			fmt.Sprintf("<b>%v</b> has kicked <b>%v</b>",
+				message.Nick, message.Text))
+	} else if message.Extra["CTCP"] == "ACTION" {
+		m = tgbotapi.NewMessage(c.Group, fmt.Sprintf("*<b>%v</b> %v*",
+			message.Nick, message.Text))
+	} else {
+		m = tgbotapi.NewMessage(c.Group, fmt.Sprintf("<b>%v</b>: %v",
+			message.Nick, message.Text))
+	}
+	m.ParseMode = "HTML"
+	return m
 }
 
 // formatMessage maps the message onto the universal message struct

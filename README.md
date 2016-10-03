@@ -13,23 +13,21 @@ A Telegram<->IRC transport.
 - [x] Relaying Telegram messages to IRC
 - [x] Coloured nicknames
 - [ ] Preserve formatted text
+- [ ] /me command support
 - [ ] Replies, forwards support
 - [ ] Documents: serving them as links in IRC
 - [ ] Pictures: serving and Imgur uploads
 - [ ] Moderation of the Telegram group from IRC
 - [ ] Moderation of the IRC channel from Telegram
+- [ ] Invitations to IRC from Telegram
 
 - [ ] Logging to a file
 - [ ] Showing history in IRC on query
 
-- [ ] Showing user list from IRC in TG
+- [ ] Showing moderator list from IRC in TG
 - [ ] Showing moderator list from TG in IRC
-- [ ] Sending stickers from IRC
-- [ ] Converting emojis
 - [ ] Ability to contact IRC bots
 - [ ] Edits support
 - [ ] Sed from IRC
 
 - [ ] WeeChat plugin
-- [ ] Ability to get the Telegram user realname from IRC
-- [ ] Sending files through IRC (DCC)

@@ -26,7 +26,7 @@ type Message struct {
 	ID     int    // Message ID, Telegram only
 	Name   string // Realname, Telegram only
 	FromID int    // From user ID, Telegram only
-	// In IRC: CTCP, DCC
+	// In IRC: CTCP (ACTION), kick, ban, topic
 	// In Telegram: Media: Type, width x height, size and URL;
 	// Forward: from; Pin: true, Edit: date
 	Extra map[string]string

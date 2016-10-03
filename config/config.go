@@ -31,6 +31,9 @@ func PopulateConfig(file string) error {
 token = myToken
 group = 7654321
 
+TTL = 300 # (seconds) If message was sent more than <TTL> seconds ago, it won't be relayed
+          # 0 to disable
+
 [irc]
 server = irc.rizon.net
 port = 6667
@@ -72,4 +75,6 @@ type Irc struct {
 type Telegram struct {
 	Token string
 	Group int64
+
+	TTL int64
 }
