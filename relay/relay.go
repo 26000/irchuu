@@ -19,14 +19,14 @@ type Relay struct {
 // Message represents a generic message which may be either from TG or IRC.
 type Message struct {
 	Date   int64  // UNIX time
-	Source string // IRC or Telegram
+	Source string // IRC or TG
 	Nick   string // Nickname in both IRC and Telegram
 	Text   string
 
 	ID     int    // Message ID, Telegram only
 	Name   string // Realname, Telegram only
 	FromID int    // From user ID, Telegram only
-	// In IRC: CTCP (ACTION), kick, ban, topic
+	// In IRC: CTCP (ACTION), kick, topic
 	// In Telegram: Media: Type, width x height, size and URL;
 	// Forward: from; Pin: true, Edit: date
 	Extra map[string]string

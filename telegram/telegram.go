@@ -106,9 +106,39 @@ func formatTGMessage(message relay.Message, c *config.Telegram) tgbotapi.Message
 
 // formatMessage maps the message onto the universal message struct
 // (relay.Message).
-func formatMessage(m *tgbotapi.Message) relay.Message {
+func formatMessage(message *tgbotapi.Message) relay.Message {
+	if message.Entities != nil {
+		off := 0
+		for i := 0; i < len(*message.Entities); i++ {
+			e := (*message.Entities)[i]
+			e.Offset += off
+			switch e.Type {
+			case "italic":
+				message.Text = message.Text[0:e.Offset] + "\x1D" + message.Text[e.Offset:e.Offset+e.Length] + "\x0F" + message.Text[e.Offset+e.Length:len(message.Text)]
+				off += 2
+			case "bold":
+				message.Text = message.Text[0:e.Offset] + "\x02" + message.Text[e.Offset:e.Offset+e.Length] + "\x0F" + message.Text[e.Offset+e.Length:len(message.Text)]
+				off += 2
+			case "text_link":
+				message.Text = fmt.Sprintf("%v%v (%v) %v", message.Text[0:e.Offset], e.URL, message.Text[e.Offset:e.Offset+e.Length], message.Text[e.Offset+e.Length:len(message.Text)])
+				off += 4 + len(e.URL)
+			}
+		}
+	}
+
+	name := message.From.FirstName
+	if message.From.LastName != "" {
+		name = name + " " + message.From.LastName
+	}
+
 	return relay.Message{
-		Nick: m.From.UserName,
-		Text: m.Text,
+		Date:   int64(message.Date),
+		Nick:   message.From.UserName,
+		Source: "TG",
+		Text:   message.Text,
+
+		ID:     message.MessageID,
+		Name:   name,
+		FromID: message.From.ID,
 	}
 }
