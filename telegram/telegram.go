@@ -107,24 +107,7 @@ func formatTGMessage(message relay.Message, c *config.Telegram) tgbotapi.Message
 // formatMessage maps the message onto the universal message struct
 // (relay.Message).
 func formatMessage(message *tgbotapi.Message) relay.Message {
-	if message.Entities != nil {
-		off := 0
-		for i := 0; i < len(*message.Entities); i++ {
-			e := (*message.Entities)[i]
-			e.Offset += off
-			switch e.Type {
-			case "italic":
-				message.Text = message.Text[0:e.Offset] + "\x1D" + message.Text[e.Offset:e.Offset+e.Length] + "\x0F" + message.Text[e.Offset+e.Length:len(message.Text)]
-				off += 2
-			case "bold":
-				message.Text = message.Text[0:e.Offset] + "\x02" + message.Text[e.Offset:e.Offset+e.Length] + "\x0F" + message.Text[e.Offset+e.Length:len(message.Text)]
-				off += 2
-			case "text_link":
-				message.Text = fmt.Sprintf("%v%v (%v) %v", message.Text[0:e.Offset], e.URL, message.Text[e.Offset:e.Offset+e.Length], message.Text[e.Offset+e.Length:len(message.Text)])
-				off += 4 + len(e.URL)
-			}
-		}
-	}
+	message.Text = translateMarkup(*message)
 
 	name := message.From.FirstName
 	if message.From.LastName != "" {
@@ -141,4 +124,50 @@ func formatMessage(message *tgbotapi.Message) relay.Message {
 		Name:   name,
 		FromID: message.From.ID,
 	}
+}
+
+// translateMarkup turns Telegram's entities into IRC's codes.
+func translateMarkup(message tgbotapi.Message) string {
+	messageText := []rune(message.Text)
+	if message.Entities != nil {
+		off := 0
+		for i := 0; i < len(*message.Entities); i++ {
+			e := (*message.Entities)[i]
+			e.Offset += off
+			switch e.Type {
+			case "italic":
+				messageText = surroundRunes(messageText,
+					e.Offset, e.Length, rune('\x1d'),
+					rune('\x0f'))
+				off += 2
+			case "bold":
+				messageText = surroundRunes(messageText,
+					e.Offset, e.Length, rune('\x02'),
+					rune('\x0f'))
+				off += 2
+			case "text_link":
+				var newMessageText []rune
+				newMessageText = append(newMessageText, messageText[:e.Offset]...)
+				newMessageText = append(newMessageText, []rune(e.URL)...)
+				newMessageText = append(newMessageText, []rune(" (")...)
+				newMessageText = append(newMessageText, messageText[e.Offset:e.Offset+e.Length]...)
+				newMessageText = append(newMessageText, []rune(") ")...)
+				newMessageText = append(newMessageText, messageText[e.Offset+e.Length:]...)
+				off += 4 + len(e.URL)
+				messageText = newMessageText
+			}
+		}
+	}
+	return string(messageText)
+}
+
+// surroundRunes adds two runes before a substring and after that substring.
+func surroundRunes(runes []rune, offset int, length int, rune1 rune, rune2 rune) []rune {
+	var newRunes []rune
+	newRunes = append(newRunes, runes[:offset]...)
+	newRunes = append(newRunes, rune1)
+	newRunes = append(newRunes, runes[offset:offset+length]...)
+	newRunes = append(newRunes, rune2)
+	newRunes = append(newRunes, runes[offset+length:]...)
+	return newRunes
 }
