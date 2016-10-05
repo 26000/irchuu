@@ -29,5 +29,6 @@ A Telegram<->IRC transport.
 - [ ] Ability to contact IRC bots
 - [ ] Edits support
 - [ ] Sed from IRC
+- [x] Breaking long Telegram messages into several IRC messages
 
 - [ ] WeeChat plugin

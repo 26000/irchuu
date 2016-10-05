@@ -176,29 +176,6 @@ func formatIRCMessages(message relay.Message, c *config.Irc) []string {
 	}
 
 	messages := splitLines(message.Text, acceptibleLength, nick+" ")
-	/*
-		if c.Ellipsis != "" {
-			message.Text = strings.Replace(message.Text, "\n", c.Ellipsis, -1)
-			if len(message.Text) > acceptibleLength {
-				// Number of parts.
-				var l int
-				if len(message.Text)%acceptibleLength != 0 {
-					l = len(message.Text)/acceptibleLength + 1
-				} else {
-					l = len(message.Text) / acceptibleLength
-				}
-				//l = int(math.Ceil(float64(len(message.Text)) / acceptibleLength))
-
-				messages = make([]string, l)
-				for i := 1; i < l; i++ {
-					messages[i-1] = nick + " " + message.Text[(i-1)*acceptibleLength:i*acceptibleLength]
-				}
-				messages[l-1] = nick + " " + message.Text[(l-1)*acceptibleLength:len(message.Text)]
-			} else {
-				messages = []string{nick + " " + message.Text}
-			}
-		} else {
-		}*/
 	return messages
 }
 
