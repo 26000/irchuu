@@ -52,11 +52,20 @@ nick = irchuu
 password = # if not blank, will use NickServ to identify
 sasl = false # if true, will use SASL instead of NickServ
 
-channel = irchuu # without '#'!
+channel = ` + "`" + `#irchuu` + "`" + ` # must be surrounded with backticks
 chanpassword = # leave blank if not set
 
 colorize = true # colorize nicknames? (based on djb2)
 palette = 1,2,3,4,5,6,9,10,11,12,13 # colors to be used, either codes or names
+prefix = < # will be added before nicks
+postfix = > # will be added after nicks
+maxlength = 18 # maximum username length allowed, will be ellipsised if longer
+               # set to 0 to disable
+ellipsis = "… " # lines in multi-line messages will be divided with this
+                # leave blank to send them as separate messages
+
+flooddelay = 500 # (milliseconds) delay with which parts of multi-line message
+                 # are sent to prevent anti-flood from kicking the bot
 `
 	return ioutil.WriteFile(file, []byte(config), os.FileMode(0600))
 }
@@ -75,8 +84,15 @@ type Irc struct {
 	Channel      string
 	ChanPassword string
 
-	Colorize bool
-	Palette  []string
+	Colorize   bool
+	Palette    []string
+	Prefix     string
+	Postfix    string
+	MaxLength  int
+	Ellipsis   string
+	FloodDelay int
+
+	Debug bool
 }
 
 // Telegram is the struct of Telegram part in config.

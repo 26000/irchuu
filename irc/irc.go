@@ -7,8 +7,10 @@ import (
 	"github.com/thoj/go-ircevent"
 	"log"
 	"os"
+	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 )
 
 // Launch starts the IRC bot and waits for messages.
@@ -26,11 +28,10 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay) {
 		irchuu.SASLPassword = c.Password
 	}
 
+	irchuu.Debug = c.Debug
 	irchuu.Log = logger
 	irchuu.QuitMessage = "IRChuu!bye"
 	irchuu.Version = fmt.Sprintf("IRChuu! v%v (https://github.com/26000/irchuu), based on %v", config.VERSION, irc.VERSION)
-
-	//go logErrors(logger, irchuu.ErrorChan())
 
 	/* START CALLBACKS */
 	irchuu.AddCallback("CTCP_VERSION", func(event *irc.Event) {
@@ -58,7 +59,7 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay) {
 
 	irchuu.AddCallback("433", func(event *irc.Event) {
 		logger.Printf("Nickname already in use, changed to %v\n", irchuu.GetNick())
-		irchuu.Join(fmt.Sprintf("#%v %v", c.Channel, c.ChanPassword))
+		irchuu.Join(fmt.Sprintf("%v %v", c.Channel, c.ChanPassword))
 	})
 
 	irchuu.AddCallback("473", func(event *irc.Event) {
@@ -91,8 +92,8 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay) {
 
 	irchuu.AddCallback("INVITE", func(event *irc.Event) {
 		logger.Printf("Invited to %v by %v\n", event.Arguments[1], event.Nick)
-		if "#"+c.Channel == event.Arguments[1] {
-			irchuu.Join(fmt.Sprintf("#%v %v", c.Channel, c.ChanPassword))
+		if c.Channel == event.Arguments[1] {
+			irchuu.Join(fmt.Sprintf("%v %v", c.Channel, c.ChanPassword))
 		}
 	})
 
@@ -103,7 +104,7 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay) {
 	})
 
 	irchuu.AddCallback("PRIVMSG", func(event *irc.Event) {
-		if event.Arguments[0] == "#"+c.Channel {
+		if event.Arguments[0] == c.Channel {
 			r.IRCh <- formatMessage(event.Nick, event.Message(), "")
 		} else {
 			logger.Printf("Message from %v: %v\n",
@@ -112,7 +113,7 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay) {
 	})
 
 	irchuu.AddCallback("CTCP_ACTION", func(event *irc.Event) {
-		if event.Arguments[0] == "#"+c.Channel {
+		if event.Arguments[0] == c.Channel {
 			r.IRCh <- formatMessage(event.Nick, event.Message(), "ACTION")
 		} else {
 			logger.Printf("CTCP ACTION from %v: %v\n",
@@ -121,13 +122,13 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay) {
 	})
 
 	irchuu.AddCallback("KICK", func(event *irc.Event) {
-		if event.Arguments[0] == "#"+c.Channel {
+		if event.Arguments[0] == c.Channel {
 			r.IRCh <- formatMessage(event.Nick, event.Arguments[1], "KICK")
 		}
 	})
 
 	irchuu.AddCallback("TOPIC", func(event *irc.Event) {
-		if event.Arguments[0] == "#"+c.Channel {
+		if event.Arguments[0] == c.Channel {
 			r.IRCh <- formatMessage(event.Nick, event.Arguments[1], "TOPIC")
 		}
 	})
@@ -139,7 +140,7 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay) {
 			irchuu.Privmsgf("NickServ", "IDENTIFY %v", c.Password)
 		}
 
-		irchuu.Join(fmt.Sprintf("#%v %v", c.Channel, c.ChanPassword))
+		irchuu.Join(fmt.Sprintf("%v %v", c.Channel, c.ChanPassword))
 	})
 	/* CALLBACKS END */
 
@@ -151,17 +152,106 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay) {
 
 // relayMessagesToIRC listens to the Telegram channel and sends every message
 // into IRC.
-// TODO: message format, no nick fallback
 func relayMessagesToIRC(r *relay.Relay, c *config.Irc, irchuu *irc.Connection) {
 	for message := range r.TeleCh {
-		var nick string
-		if c.Colorize {
-			nick = getColoredNick(message.Nick, c)
-		} else {
-			nick = message.Nick
+		messages := formatIRCMessages(message, c)
+		for m := range messages {
+			if c.FloodDelay != 0 {
+				time.Sleep(time.Duration(c.FloodDelay) * time.Millisecond)
+			}
+			irchuu.Privmsg(c.Channel, messages[m])
 		}
-		irchuu.Privmsgf("#"+c.Channel, "<%v> %v", nick, message.Text)
 	}
+}
+
+// formatIRCMessage translates universal messages into IRC.
+// TODO: find and colorize mentions
+func formatIRCMessages(message relay.Message, c *config.Irc) []string {
+	nick := c.Prefix + formatNick(message, c) + c.Postfix
+	// 512 - 2 for CRLF - 7 for "PRIVMSG" - 4 for spaces - 9 just in case - 50 just in case
+	acceptibleLength := 440 - len(nick) - len(c.Channel)
+
+	if c.Ellipsis != "" {
+		message.Text = strings.Replace(message.Text, "\n", c.Ellipsis, -1)
+	}
+
+	messages := splitLines(message.Text, acceptibleLength, nick+" ")
+	/*
+		if c.Ellipsis != "" {
+			message.Text = strings.Replace(message.Text, "\n", c.Ellipsis, -1)
+			if len(message.Text) > acceptibleLength {
+				// Number of parts.
+				var l int
+				if len(message.Text)%acceptibleLength != 0 {
+					l = len(message.Text)/acceptibleLength + 1
+				} else {
+					l = len(message.Text) / acceptibleLength
+				}
+				//l = int(math.Ceil(float64(len(message.Text)) / acceptibleLength))
+
+				messages = make([]string, l)
+				for i := 1; i < l; i++ {
+					messages[i-1] = nick + " " + message.Text[(i-1)*acceptibleLength:i*acceptibleLength]
+				}
+				messages[l-1] = nick + " " + message.Text[(l-1)*acceptibleLength:len(message.Text)]
+			} else {
+				messages = []string{nick + " " + message.Text}
+			}
+		} else {
+		}*/
+	return messages
+}
+
+// splitLines splits Unicode lines so that they are not longer than max bytes.
+func splitLines(text string, max int, prefix string) []string {
+	var lines []string
+	size := 0
+	var runes []rune
+	for len(text) > 0 {
+		r, s := utf8.DecodeRuneInString(text)
+		if r == '\n' {
+			lines = append(lines, prefix+string(runes))
+			runes = nil
+			size = 0
+			text = text[s:]
+		} else if size+s > max {
+			lines = append(lines, prefix+string(runes))
+			runes = nil
+			size = 0
+		} else {
+			size += s
+			runes = append(runes, r)
+			text = text[s:]
+		}
+	}
+	lines = append(lines, prefix+string(runes))
+	return lines
+}
+
+// formatNick processes nicknames.
+func formatNick(message relay.Message, c *config.Irc) string {
+	var nick string
+	addAt := true
+
+	if message.Nick == "" {
+		message.Nick = message.Name
+		addAt = false
+	}
+
+	if c.Colorize {
+		nick = getColoredNick(message.Nick, c)
+	} else {
+		nick = message.Nick
+	}
+
+	if c.MaxLength != 0 && len(message.Nick) > c.MaxLength {
+		message.Nick = message.Nick[:c.MaxLength-1] + "…"
+	}
+
+	if addAt {
+		nick = "@" + nick
+	}
+	return nick
 }
 
 // formatMessage creates a Message in the universal format of an IRC message.
@@ -184,13 +274,6 @@ func formatMessage(nick string, text string, action string) relay.Message {
 		Text:   text,
 		Date:   time.Now().Unix(),
 		Extra:  extra,
-	}
-}
-
-// logErrors listens to an error channel and logs errors.
-func logErrors(logger *log.Logger, ch chan error) {
-	for e := range ch {
-		logger.Printf("Error: %v\n", e)
 	}
 }
 
