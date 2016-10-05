@@ -12,7 +12,7 @@ A Telegram<->IRC transport.
 - [x] Relaying IRC messages to Telegram
 - [x] Relaying Telegram messages to IRC
 - [x] Coloured nicknames
-- [ ] Preserve formatted text
+- [x] Preserve formatted text
 - [ ] /me command support
 - [ ] Replies, forwards support
 - [ ] Documents: serving them as links in IRC

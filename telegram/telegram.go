@@ -8,6 +8,7 @@ import (
 	"html"
 	"log"
 	"os"
+	"regexp"
 	"sync"
 	"time"
 )
@@ -84,6 +85,7 @@ func relayMessagesToTG(r *relay.Relay, c *config.Telegram, bot *tgbotapi.BotAPI)
 // formatTGMessage translates a universal message into Telegram's one.
 func formatTGMessage(message relay.Message, c *config.Telegram) tgbotapi.MessageConfig {
 	message.Text = html.EscapeString(message.Text)
+	message.Text = reconstructMarkup(message.Text)
 	var m tgbotapi.MessageConfig
 	if message.Extra["TOPIC"] != "" {
 		m = tgbotapi.NewMessage(c.Group,
@@ -159,6 +161,60 @@ func translateMarkup(message tgbotapi.Message) string {
 		}
 	}
 	return string(messageText)
+}
+
+// reconstructMarkup translates IRC markup to HTML.
+func reconstructMarkup(text string) string {
+
+	// strip the colors (or they'll be shown as numbers)
+	regex, _ := regexp.Compile("\x03(?:\\d{1,2}(?:,\\d{1,2})?)?")
+	text = regex.ReplaceAllLiteralString(text, "")
+
+	newText := ""
+	// 0 is plain, 1 is bold (\x02), 2 is italic (\x1d), 3 is color (\x03)
+	// if telegram starts supporting it, underline (\x1f) will be added
+	// IRC also has reverse (\x16) and color (\x03), which we don't need
+	// plain (\x0f) stops all the previous modifiers
+	state := 0
+	for _, v := range text {
+		switch state {
+		case 0:
+			switch v {
+			case '\x02':
+				newText += "<b>"
+				state = 1
+			case '\x1d':
+				newText += "<i>"
+				state = 2
+			default:
+				newText += string(v)
+			}
+		case 1:
+			if v == '\x0f' {
+				newText += "</b>"
+				state = 0
+			} else {
+				newText += string(v)
+			}
+		case 2:
+			if v == '\x0f' {
+				newText += "</i>"
+				state = 0
+			} else {
+				newText += string(v)
+			}
+		}
+	}
+
+	// if the tags were not closed, HTML will be invalid (but it's ok for IRC)
+	switch state {
+	case 1:
+		newText += "</b>"
+	case 2:
+		newText += "</i>"
+	}
+
+	return newText
 }
 
 // surroundRunes adds two runes before a substring and after that substring.
