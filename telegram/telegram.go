@@ -50,6 +50,7 @@ func processChatMessage(bot *tgbotapi.BotAPI, c *config.Telegram, message *tgbot
 		msg.ParseMode = "Markdown"
 		bot.Send(msg)
 		bot.LeaveChat(tgbotapi.ChatConfig{ChatID: message.Chat.ID})
+		logger.Printf("Was added to %v #%v (%v)\n", message.Chat.Type, message.Chat.ID, message.Chat.Title)
 		return
 	}
 	if c.TTL == 0 || c.TTL > (time.Now().Unix()-int64(message.Date)) {
