@@ -116,7 +116,7 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay) {
 
 	irchuu.AddCallback("CTCP_ACTION", func(event *irc.Event) {
 		if event.Arguments[0] == c.Channel {
-			f := formatMessage(event.Nick, event.Message(), "")
+			f := formatMessage(event.Nick, event.Message(), "ACTION")
 			r.IRCh <- f
 			r.LogCh <- f
 		} else {
