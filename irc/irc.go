@@ -105,7 +105,9 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay) {
 
 	irchuu.AddCallback("PRIVMSG", func(event *irc.Event) {
 		if event.Arguments[0] == c.Channel {
-			r.IRCh <- formatMessage(event.Nick, event.Message(), "")
+			f := formatMessage(event.Nick, event.Message(), "")
+			r.IRCh <- f
+			r.LogCh <- f
 		} else {
 			logger.Printf("Message from %v: %v\n",
 				event.Nick, event.Message())
@@ -114,7 +116,9 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay) {
 
 	irchuu.AddCallback("CTCP_ACTION", func(event *irc.Event) {
 		if event.Arguments[0] == c.Channel {
-			r.IRCh <- formatMessage(event.Nick, event.Message(), "ACTION")
+			f := formatMessage(event.Nick, event.Message(), "")
+			r.IRCh <- f
+			r.LogCh <- f
 		} else {
 			logger.Printf("CTCP ACTION from %v: %v\n",
 				event.Nick, event.Message())
@@ -123,13 +127,17 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay) {
 
 	irchuu.AddCallback("KICK", func(event *irc.Event) {
 		if event.Arguments[0] == c.Channel {
-			r.IRCh <- formatMessage(event.Nick, event.Arguments[1], "KICK")
+			f := formatMessage(event.Nick, event.Arguments[1], "KICK")
+			r.IRCh <- f
+			r.LogCh <- f
 		}
 	})
 
 	irchuu.AddCallback("TOPIC", func(event *irc.Event) {
 		if event.Arguments[0] == c.Channel {
-			r.IRCh <- formatMessage(event.Nick, event.Arguments[1], "TOPIC")
+			f := formatMessage(event.Nick, event.Arguments[1], "TOPIC")
+			r.IRCh <- f
+			r.LogCh <- f
 		}
 	})
 
@@ -148,6 +156,8 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay) {
 	if err != nil {
 		logger.Fatalf("Cannot connect: %v\n", err)
 	}
+
+	irchuu.Loop()
 }
 
 // relayMessagesToIRC listens to the Telegram channel and sends every message
@@ -156,10 +166,10 @@ func relayMessagesToIRC(r *relay.Relay, c *config.Irc, irchuu *irc.Connection) {
 	for message := range r.TeleCh {
 		messages := formatIRCMessages(message, c)
 		for m := range messages {
+			irchuu.Privmsg(c.Channel, messages[m])
 			if c.FloodDelay != 0 {
 				time.Sleep(time.Duration(c.FloodDelay) * time.Millisecond)
 			}
-			irchuu.Privmsg(c.Channel, messages[m])
 		}
 	}
 }

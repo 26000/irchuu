@@ -4,11 +4,13 @@ import (
 	"fmt"
 	"github.com/26000/irchuu/config"
 	"github.com/26000/irchuu/irc"
+	"github.com/26000/irchuu/logger"
 	"github.com/26000/irchuu/paths"
 	"github.com/26000/irchuu/relay"
 	"github.com/26000/irchuu/telegram"
 	"log"
 	"os"
+	"path"
 	"sync"
 )
 
@@ -31,8 +33,9 @@ func main() {
 	r := relay.NewRelay()
 
 	var wg sync.WaitGroup
-	wg.Add(2)
+	wg.Add(3)
 	go irchuu.Launch(irc, &wg, r)
 	go telegram.Launch(tg, &wg, r)
+	go logger.Launch(path.Join(dataDir, "chat.log"), &wg, r)
 	wg.Wait()
 }

@@ -54,7 +54,9 @@ func processChatMessage(bot *tgbotapi.BotAPI, c *config.Telegram, message *tgbot
 		return
 	}
 	if c.TTL == 0 || c.TTL > (time.Now().Unix()-int64(message.Date)) {
-		r.TeleCh <- formatMessage(message)
+		f := formatMessage(message)
+		r.TeleCh <- f
+		r.LogCh <- f
 	}
 }
 
