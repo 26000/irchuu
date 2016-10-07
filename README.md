@@ -24,7 +24,7 @@ A Telegram<->IRC transport.
 - [x] Logging to a file
 - [ ] Showing history in IRC on query
 
-- [ ] Showing moderator list from IRC in TG
+- [x] Showing moderator list from IRC in TG
 - [ ] Showing moderator list from TG in IRC
 - [x] Ability to contact IRC bots
 - [ ] Edits support
@@ -32,3 +32,4 @@ A Telegram<->IRC transport.
 - [x] Auto-reconnecting if internet lost
 
 - [ ] WeeChat plugin
+- [ ] Unit tests

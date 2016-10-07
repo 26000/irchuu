@@ -27,6 +27,7 @@ func Launch(c *config.Telegram, wg *sync.WaitGroup, r *relay.Relay) {
 	u.Timeout = 60
 
 	go relayMessagesToTG(r, c, bot)
+	go listenService(r, c, bot)
 	updates, err := bot.GetUpdatesChan(u)
 
 	for update := range updates {
@@ -46,19 +47,33 @@ func Launch(c *config.Telegram, wg *sync.WaitGroup, r *relay.Relay) {
 // IRC and Log channels.
 func processChatMessage(bot *tgbotapi.BotAPI, c *config.Telegram, message *tgbotapi.Message, logger *log.Logger, r *relay.Relay) {
 	if message.Chat.ID != c.Group {
-		msg := tgbotapi.NewMessage(message.Chat.ID, fmt.Sprintf("I'm not configured to work in this group (group id: %d).", message.Chat.ID))
+		msg := tgbotapi.NewMessage(message.Chat.ID,
+			fmt.Sprintf("I'm not configured to work in this group (group id: %d).",
+				message.Chat.ID))
 		msg.ParseMode = "Markdown"
 		bot.Send(msg)
 		bot.LeaveChat(tgbotapi.ChatConfig{ChatID: message.Chat.ID})
-		logger.Printf("Was added to %v #%v (%v)\n", message.Chat.Type, message.Chat.ID, message.Chat.Title)
+		logger.Printf("Was added to %v #%v (%v)\n", message.Chat.Type,
+			message.Chat.ID, message.Chat.Title)
 		return
 	}
 	if c.TTL == 0 || c.TTL > (time.Now().Unix()-int64(message.Date)) {
-		f := formatMessage(message, bot.Self.ID)
+		f := formatMessage(message, bot.Self.ID, c.Prefix)
 		r.TeleCh <- f
 		r.LogCh <- f
 		if cmd := message.Command(); cmd != "" {
 			processCmd(bot, c, message, cmd, r)
+		}
+	}
+}
+
+// listenService listens to service messages and executes them.
+func listenService(r *relay.Relay, c *config.Telegram, bot *tgbotapi.BotAPI) {
+	for f := range r.IRCServiceCh {
+		switch f.Command {
+		case "announce":
+			m := tgbotapi.NewMessage(c.Group, f.Arguments)
+			bot.Send(m)
 		}
 	}
 }
@@ -80,12 +95,14 @@ func processCmd(bot *tgbotapi.BotAPI, c *config.Telegram, message *tgbotapi.Mess
 					f := relay.ServiceMessage{"kick", arg}
 					r.TeleServiceCh <- f
 				case "member":
-					m := tgbotapi.NewMessage(c.Group, "Insufficient permission.")
+					m := tgbotapi.NewMessage(c.Group,
+						"Insufficient permission.")
 					bot.Send(m)
 				case "left":
 					fallthrough
 				case "kicked":
-					m := tgbotapi.NewMessage(c.Group, ">/kick "+arg+"\n\nOh you.")
+					m := tgbotapi.NewMessage(c.Group,
+						">/kick "+arg+"\n\nOh you.")
 					bot.Send(m)
 				}
 			}
@@ -123,7 +140,8 @@ func processPM(bot *tgbotapi.BotAPI, c *config.Telegram, message *tgbotapi.Messa
 		name = fmt.Sprintf("%v %v", message.From.FirstName, message.From.LastName)
 	}
 	logger.Printf("Incoming PM from %v: %v\n", name, message.Text)
-	msg := tgbotapi.NewMessage(message.Chat.ID, "I only work in my group.\nIf you want to know more about me, visit my [GitHub](https://github.com/26000/irchuu).")
+	msg := tgbotapi.NewMessage(message.Chat.ID,
+		"I only work in my group.\nIf you want to know more about me, visit my [GitHub](https://github.com/26000/irchuu).")
 	msg.ParseMode = "Markdown"
 	bot.Send(msg)
 }
@@ -163,7 +181,7 @@ func formatTGMessage(message relay.Message, c *config.Telegram) tgbotapi.Message
 
 // formatMessage maps the message onto the universal message struct
 // (relay.Message).
-func formatMessage(message *tgbotapi.Message, id int) relay.Message {
+func formatMessage(message *tgbotapi.Message, id int, prefix string) relay.Message {
 	extra := make(map[string]string)
 	if message.Text == "" {
 		message.Text = message.Caption
@@ -172,7 +190,8 @@ func formatMessage(message *tgbotapi.Message, id int) relay.Message {
 	}
 
 	if message.ReplyToMessage != nil && message.ReplyToMessage.From.ID == id && message.ReplyToMessage.Entities != nil && len(*message.ReplyToMessage.Entities) > 0 {
-		extra["reply"] = getEntity(message.ReplyToMessage.Text, (*message.ReplyToMessage.Entities)[0])
+		extra["reply"] = getEntity(message.ReplyToMessage.Text,
+			(*message.ReplyToMessage.Entities)[0])
 		extra["replyID"] = string(message.ReplyToMessage.MessageID)
 	} else if message.ReplyToMessage != nil {
 		extra["reply"] = message.ReplyToMessage.From.String()

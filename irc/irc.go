@@ -22,6 +22,8 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay) {
 	irchuu.UseTLS = c.SSL
 	irchuu.Password = c.ServerPassword
 
+	var names []string
+
 	if c.SASL {
 		irchuu.UseSASL = true
 		irchuu.SASLLogin = c.Nick
@@ -39,7 +41,8 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay) {
 	})
 
 	irchuu.AddCallback("CTCP", func(event *irc.Event) {
-		logger.Printf("Unknown CTCP %v from %v\n", event.Arguments[1], event.Nick)
+		logger.Printf("Unknown CTCP %v from %v\n", event.Arguments[1],
+			event.Nick)
 	})
 
 	irchuu.AddCallback("NOTICE", func(event *irc.Event) {
@@ -58,7 +61,8 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay) {
 	})
 
 	irchuu.AddCallback("433", func(event *irc.Event) {
-		logger.Printf("Nickname already in use, changed to %v\n", irchuu.GetNick())
+		logger.Printf("Nickname already in use, changed to %v\n",
+			irchuu.GetNick())
 		irchuu.Join(fmt.Sprintf("%v %v", c.Channel, c.ChanPassword))
 	})
 
@@ -90,6 +94,13 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay) {
 		logger.Printf("Error: ERR_TOOMANYCHANNELS\n")
 	})
 
+	// You are not channel operator
+	irchuu.AddCallback("482", func(event *irc.Event) {
+		if event.Arguments[1] == c.Channel {
+			r.IRCServiceCh <- relay.ServiceMessage{"announce", "I need to be an operator in IRC for that action."}
+		}
+	})
+
 	irchuu.AddCallback("INVITE", func(event *irc.Event) {
 		logger.Printf("Invited to %v by %v\n", event.Arguments[1], event.Nick)
 		if c.Channel == event.Arguments[1] {
@@ -97,11 +108,77 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay) {
 		}
 	})
 
+	irchuu.AddCallback("341", func(event *irc.Event) {
+		s := relay.ServiceMessage{"announce",
+			fmt.Sprintf("Invited %v to %v.", event.Arguments[1],
+				event.Arguments[2])}
+
+		r.IRCServiceCh <- s
+		r.TeleServiceCh <- s
+	})
+
+	// TODO: add bold for these messages
+	irchuu.AddCallback("443", func(event *irc.Event) {
+		s := relay.ServiceMessage{"announce",
+			fmt.Sprintf("User %v is already on channel.",
+				event.Arguments[1])}
+
+		r.IRCServiceCh <- s
+	})
+
+	irchuu.AddCallback("401", func(event *irc.Event) {
+		s := relay.ServiceMessage{"announce",
+			fmt.Sprintf("No such nick: %v.", event.Arguments[1])}
+
+		r.IRCServiceCh <- s
+		r.TeleServiceCh <- s
+	})
+
 	// On joined...
-	irchuu.AddCallback("366", func(event *irc.Event) {
-		logger.Printf("Joined %v\n", event.Arguments[1])
+	irchuu.AddCallback("JOIN", func(event *irc.Event) {
+		logger.Printf("Joined %v\n", event.Arguments[0])
 		go relayMessagesToIRC(r, c, irchuu)
 		go listenService(r, c, irchuu)
+
+	})
+
+	// Topic
+	irchuu.AddCallback("332", func(event *irc.Event) {
+		if event.Arguments[1] == c.Channel {
+			r.IRCServiceCh <- relay.ServiceMessage{"announce",
+				fmt.Sprintf("The topic for %v is %v.",
+					c.Channel, event.Arguments[2])}
+		}
+	})
+
+	// No topic
+	irchuu.AddCallback("331", func(event *irc.Event) {
+		if event.Arguments[1] == c.Channel {
+			r.IRCServiceCh <- relay.ServiceMessage{"announce",
+				"No topic is set."}
+		}
+	})
+
+	// Names
+	irchuu.AddCallback("353", func(event *irc.Event) {
+		if event.Arguments[2] == c.Channel {
+			names = append(names, strings.Split(event.Arguments[3],
+				" ")...)
+		}
+	})
+
+	// End of names
+	irchuu.AddCallback("366", func(event *irc.Event) {
+		if event.Arguments[1] == c.Channel {
+			ops := "Operators online: "
+			for _, name := range names {
+				if name[0] == '~' || name[0] == '&' || name[0] == '@' || name[0] == '%' {
+					ops += name + " "
+				}
+			}
+			names = nil
+			r.IRCServiceCh <- relay.ServiceMessage{"announce", ops}
+		}
 	})
 
 	irchuu.AddCallback("PRIVMSG", func(event *irc.Event) {
@@ -142,18 +219,6 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay) {
 		}
 	})
 
-	irchuu.AddCallback("332", func(event *irc.Event) {
-		if event.Arguments[0] == c.Channel {
-			r.IRCServiceCh <- relay.ServiceMessage{"announce", fmt.Sprintf("The topic for %v is %v.", c.Channel, event.Arguments[1])}
-		}
-	})
-
-	irchuu.AddCallback("331", func(event *irc.Event) {
-		if event.Arguments[0] == c.Channel {
-			r.IRCServiceCh <- relay.ServiceMessage{"announce", "No topic is set."}
-		}
-	})
-
 	// On connected...
 	irchuu.AddCallback("001", func(event *irc.Event) {
 		if !c.SASL && c.Password != "" {
@@ -191,11 +256,14 @@ func relayMessagesToIRC(r *relay.Relay, c *config.Irc, irchuu *irc.Connection) {
 func listenService(r *relay.Relay, c *config.Irc, irchuu *irc.Connection) {
 	for f := range r.TeleServiceCh {
 		switch f.Command {
+		case "announce":
+			fallthrough
 		case "bot":
 			irchuu.Privmsg(c.Channel, f.Arguments)
 		case "kick":
 			if f.Arguments != irchuu.GetNick() {
-				irchuu.Kick(f.Arguments, c.Channel, "relayed from Telegram")
+				irchuu.Kick(f.Arguments, c.Channel,
+					"relayed from Telegram")
 			}
 		case "ops":
 			irchuu.SendRawf("NAMES %v", c.Channel)
@@ -203,6 +271,10 @@ func listenService(r *relay.Relay, c *config.Irc, irchuu *irc.Connection) {
 			irchuu.SendRawf("INVITE %v %v", f.Arguments, c.Channel)
 		case "topic":
 			irchuu.SendRawf("TOPIC %v", c.Channel)
+		}
+
+		if c.FloodDelay != 0 {
+			time.Sleep(time.Duration(c.FloodDelay) * time.Millisecond)
 		}
 	}
 }
@@ -219,11 +291,14 @@ func formatIRCMessages(message relay.Message, c *config.Irc) []string {
 	}
 
 	if message.Extra["forward"] != "" {
-		message.Text = fmt.Sprintf("[\x0311fwd\x0f from @%v] %v", colorizeNick(message.Extra["forward"], c), message.Text)
+		message.Text = fmt.Sprintf("[\x0311fwd\x0f from @%v] %v",
+			colorizeNick(message.Extra["forward"], c), message.Text)
 	} else if message.Extra["reply"] != "" && message.Extra["replyUserID"] != "" {
-		message.Text = fmt.Sprintf("@%v, %v", colorizeNick(message.Extra["reply"], c), message.Text)
+		message.Text = fmt.Sprintf("@%v, %v",
+			colorizeNick(message.Extra["reply"], c), message.Text)
 	} else if message.Extra["reply"] != "" {
-		message.Text = fmt.Sprintf("%v, %v", colorizeNick(message.Extra["reply"], c), message.Text)
+		message.Text = fmt.Sprintf("%v, %v",
+			colorizeNick(message.Extra["reply"], c), message.Text)
 	}
 
 	messages := splitLines(message.Text, acceptibleLength, nick+" ")
