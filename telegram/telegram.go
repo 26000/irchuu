@@ -9,6 +9,7 @@ import (
 	"log"
 	"os"
 	"regexp"
+	"strings"
 	"sync"
 	"time"
 )
@@ -31,7 +32,10 @@ func Launch(c *config.Telegram, wg *sync.WaitGroup, r *relay.Relay) {
 	updates, err := bot.GetUpdatesChan(u)
 
 	for update := range updates {
-		if update.Message == nil {
+		if update.Message == nil && update.EditedMessage != nil {
+			update.Message = update.EditedMessage
+			update.EditedMessage = nil
+		} else if update.Message == nil {
 			continue
 		}
 
@@ -189,7 +193,7 @@ func formatMessage(message *tgbotapi.Message, id int, prefix string) relay.Messa
 		message.Text = translateMarkup(*message)
 	}
 
-	if message.ReplyToMessage != nil && message.ReplyToMessage.From.ID == id && message.ReplyToMessage.Entities != nil && len(*message.ReplyToMessage.Entities) > 0 {
+	if message.ReplyToMessage != nil && message.ReplyToMessage.From.ID == id && message.ReplyToMessage.Entities != nil && len(*message.ReplyToMessage.Entities) > 0 && strings.HasPrefix(message.ReplyToMessage.Text, html.UnescapeString(prefix)) {
 		extra["reply"] = getEntity(message.ReplyToMessage.Text,
 			(*message.ReplyToMessage.Entities)[0])
 		extra["replyID"] = string(message.ReplyToMessage.MessageID)
@@ -203,6 +207,10 @@ func formatMessage(message *tgbotapi.Message, id int, prefix string) relay.Messa
 		extra["forward"] = message.ForwardFrom.String()
 		extra["forwardUserID"] = string(message.ForwardFrom.ID)
 		extra["forwardDate"] = string(message.ForwardDate)
+	}
+
+	if message.EditDate != 0 {
+		extra["edit"] = string(message.EditDate)
 	}
 
 	name := message.From.FirstName

@@ -301,6 +301,10 @@ func formatIRCMessages(message relay.Message, c *config.Irc) []string {
 			colorizeNick(message.Extra["reply"], c), message.Text)
 	}
 
+	if message.Extra["edit"] != "" {
+		message.Text = "\x034[edited]\x0f " + message.Text
+	}
+
 	messages := splitLines(message.Text, acceptibleLength, nick+" ")
 	return messages
 }

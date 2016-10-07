@@ -27,7 +27,7 @@ A Telegram<->IRC transport.
 - [x] Showing moderator list from IRC in TG
 - [ ] Showing moderator list from TG in IRC
 - [x] Ability to contact IRC bots
-- [ ] Edits support
+- [x] Edits support
 - [x] Breaking long Telegram messages into several IRC messages
 - [x] Auto-reconnecting if internet lost
 
