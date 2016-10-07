@@ -46,7 +46,7 @@ func Launch(c *config.Telegram, wg *sync.WaitGroup, r *relay.Relay) {
 // IRC and Log channels.
 func processChatMessage(bot *tgbotapi.BotAPI, c *config.Telegram, message *tgbotapi.Message, logger *log.Logger, r *relay.Relay) {
 	if message.Chat.ID != c.Group {
-		msg := tgbotapi.NewMessage(message.Chat.ID, fmt.Sprintf("I'm not configured to work in this group (group id: %d)", message.Chat.ID))
+		msg := tgbotapi.NewMessage(message.Chat.ID, fmt.Sprintf("I'm not configured to work in this group (group id: %d).", message.Chat.ID))
 		msg.ParseMode = "Markdown"
 		bot.Send(msg)
 		bot.LeaveChat(tgbotapi.ChatConfig{ChatID: message.Chat.ID})
@@ -57,6 +57,58 @@ func processChatMessage(bot *tgbotapi.BotAPI, c *config.Telegram, message *tgbot
 		f := formatMessage(message, bot.Self.ID)
 		r.TeleCh <- f
 		r.LogCh <- f
+		if cmd := message.Command(); cmd != "" {
+			processCmd(bot, c, message, cmd, r)
+		}
+	}
+}
+
+// processCmd works with commands starting with '/'.
+func processCmd(bot *tgbotapi.BotAPI, c *config.Telegram, message *tgbotapi.Message, cmd string, r *relay.Relay) {
+	arg := message.CommandArguments()
+	switch cmd {
+	case "kick":
+		if c.Moderation {
+			user, err := bot.GetChatMember(
+				tgbotapi.ChatConfigWithUser{ChatID: c.Group,
+					UserID: message.From.ID})
+			if err == nil {
+				switch user.Status {
+				case "administrator":
+					fallthrough
+				case "creator":
+					f := relay.ServiceMessage{"kick", arg}
+					r.TeleServiceCh <- f
+				case "member":
+					m := tgbotapi.NewMessage(c.Group, "Insufficient permission.")
+					bot.Send(m)
+				case "left":
+					fallthrough
+				case "kicked":
+					m := tgbotapi.NewMessage(c.Group, ">/kick "+arg+"\n\nOh you.")
+					bot.Send(m)
+				}
+			}
+		}
+	case "ops":
+		f := relay.ServiceMessage{"ops", arg}
+		r.TeleServiceCh <- f
+	case "bot":
+		if c.AllowBots {
+			f := relay.ServiceMessage{"bot", arg}
+			r.TeleServiceCh <- f
+		}
+	case "invite":
+		if c.AllowInvites {
+			f := relay.ServiceMessage{"invite", arg}
+			r.TeleServiceCh <- f
+		}
+	case "topic":
+		f := relay.ServiceMessage{"topic", arg}
+		r.TeleServiceCh <- f
+	case "version":
+		m := tgbotapi.NewMessage(c.Group, "IRChuu v"+config.VERSION)
+		bot.Send(m)
 	}
 }
 
@@ -154,7 +206,7 @@ func formatMessage(message *tgbotapi.Message, id int) relay.Message {
 
 // getEntity returns the text of an entity.
 func getEntity(text string, ent tgbotapi.MessageEntity) string {
-	return text[ent.Offset : ent.Offset+ent.Length]
+	return string([]rune(text)[ent.Offset : ent.Offset+ent.Length])
 }
 
 // getFullName returns the First name or First name [space] Last name.

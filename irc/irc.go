@@ -101,6 +101,7 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay) {
 	irchuu.AddCallback("366", func(event *irc.Event) {
 		logger.Printf("Joined %v\n", event.Arguments[1])
 		go relayMessagesToIRC(r, c, irchuu)
+		go listenService(r, c, irchuu)
 	})
 
 	irchuu.AddCallback("PRIVMSG", func(event *irc.Event) {
@@ -141,6 +142,18 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay) {
 		}
 	})
 
+	irchuu.AddCallback("332", func(event *irc.Event) {
+		if event.Arguments[0] == c.Channel {
+			r.IRCServiceCh <- relay.ServiceMessage{"announce", fmt.Sprintf("The topic for %v is %v.", c.Channel, event.Arguments[1])}
+		}
+	})
+
+	irchuu.AddCallback("331", func(event *irc.Event) {
+		if event.Arguments[0] == c.Channel {
+			r.IRCServiceCh <- relay.ServiceMessage{"announce", "No topic is set."}
+		}
+	})
+
 	// On connected...
 	irchuu.AddCallback("001", func(event *irc.Event) {
 		if !c.SASL && c.Password != "" {
@@ -170,6 +183,26 @@ func relayMessagesToIRC(r *relay.Relay, c *config.Irc, irchuu *irc.Connection) {
 			if c.FloodDelay != 0 {
 				time.Sleep(time.Duration(c.FloodDelay) * time.Millisecond)
 			}
+		}
+	}
+}
+
+// listenService listens to service messages and executes them.
+func listenService(r *relay.Relay, c *config.Irc, irchuu *irc.Connection) {
+	for f := range r.TeleServiceCh {
+		switch f.Command {
+		case "bot":
+			irchuu.Privmsg(c.Channel, f.Arguments)
+		case "kick":
+			if f.Arguments != irchuu.GetNick() {
+				irchuu.Kick(f.Arguments, c.Channel, "relayed from Telegram")
+			}
+		case "ops":
+			irchuu.SendRawf("NAMES %v", c.Channel)
+		case "invite":
+			irchuu.SendRawf("INVITE %v %v", f.Arguments, c.Channel)
+		case "topic":
+			irchuu.SendRawf("TOPIC %v", c.Channel)
 		}
 	}
 }

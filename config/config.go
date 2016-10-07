@@ -42,6 +42,11 @@ TTL = 300 # (seconds) If message was sent more than <TTL> seconds ago, it won't 
 prefix = < # will be added before nicks
 postfix = > # will be added after nicks
 
+allowbots = true # allow sending messages without nick prefix (/bot command)
+allowinvites = false # allow invites to the IRC channel from Telegram
+moderation = true # allow moderators in Telegram to kick users from IRC
+                  # (bot needs to have permissions for that in IRC)
+
 [irc]
 server = irc.rizon.net
 port = 6667
@@ -66,6 +71,9 @@ ellipsis = "… " # lines in multi-line messages will be divided with this
 
 flooddelay = 500 # (milliseconds) delay with which parts of multi-line message
                  # are sent to prevent anti-flood from kicking the bot
+
+moderation = true # allow ops in IRC to kick users from Telegram
+                  # (bot needs to be a moderator in Telegram)
 `
 	return ioutil.WriteFile(file, []byte(config), os.FileMode(0600))
 }
@@ -92,6 +100,8 @@ type Irc struct {
 	Ellipsis   string
 	FloodDelay int
 
+	Moderation bool
+
 	Debug bool
 }
 
@@ -104,4 +114,8 @@ type Telegram struct {
 
 	Prefix  string
 	Postfix string
+
+	AllowBots    bool
+	AllowInvites bool
+	Moderation   bool
 }
