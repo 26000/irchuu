@@ -54,7 +54,7 @@ func processChatMessage(bot *tgbotapi.BotAPI, c *config.Telegram, message *tgbot
 		return
 	}
 	if c.TTL == 0 || c.TTL > (time.Now().Unix()-int64(message.Date)) {
-		f := formatMessage(message)
+		f := formatMessage(message, bot.Self.ID)
 		r.TeleCh <- f
 		r.LogCh <- f
 	}
@@ -111,8 +111,28 @@ func formatTGMessage(message relay.Message, c *config.Telegram) tgbotapi.Message
 
 // formatMessage maps the message onto the universal message struct
 // (relay.Message).
-func formatMessage(message *tgbotapi.Message) relay.Message {
-	message.Text = translateMarkup(*message)
+func formatMessage(message *tgbotapi.Message, id int) relay.Message {
+	extra := make(map[string]string)
+	if message.Text == "" {
+		message.Text = message.Caption
+	} else {
+		message.Text = translateMarkup(*message)
+	}
+
+	if message.ReplyToMessage != nil && message.ReplyToMessage.From.ID == id && message.ReplyToMessage.Entities != nil && len(*message.ReplyToMessage.Entities) > 0 {
+		extra["reply"] = getEntity(message.ReplyToMessage.Text, (*message.ReplyToMessage.Entities)[0])
+		extra["replyID"] = string(message.ReplyToMessage.MessageID)
+	} else if message.ReplyToMessage != nil {
+		extra["reply"] = message.ReplyToMessage.From.String()
+		extra["replyID"] = string(message.ReplyToMessage.MessageID)
+		extra["replyUserID"] = string(message.ReplyToMessage.From.ID)
+	}
+
+	if message.ForwardFrom != nil {
+		extra["forward"] = message.ForwardFrom.String()
+		extra["forwardUserID"] = string(message.ForwardFrom.ID)
+		extra["forwardDate"] = string(message.ForwardDate)
+	}
 
 	name := message.From.FirstName
 	if message.From.LastName != "" {
@@ -128,7 +148,22 @@ func formatMessage(message *tgbotapi.Message) relay.Message {
 		ID:     message.MessageID,
 		Name:   name,
 		FromID: message.From.ID,
+		Extra:  extra,
 	}
+}
+
+// getEntity returns the text of an entity.
+func getEntity(text string, ent tgbotapi.MessageEntity) string {
+	return text[ent.Offset : ent.Offset+ent.Length]
+}
+
+// getFullName returns the First name or First name [space] Last name.
+func getFullName(user *tgbotapi.User) string {
+	name := user.FirstName
+	if user.LastName != "" {
+		name = name + " " + user.LastName
+	}
+	return name
 }
 
 // translateMarkup turns Telegram's entities into IRC's codes.

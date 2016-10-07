@@ -185,6 +185,14 @@ func formatIRCMessages(message relay.Message, c *config.Irc) []string {
 		message.Text = strings.Replace(message.Text, "\n", c.Ellipsis, -1)
 	}
 
+	if message.Extra["forward"] != "" {
+		message.Text = fmt.Sprintf("[\x0311fwd\x0f from @%v] %v", colorizeNick(message.Extra["forward"], c), message.Text)
+	} else if message.Extra["reply"] != "" && message.Extra["replyUserID"] != "" {
+		message.Text = fmt.Sprintf("@%v, %v", colorizeNick(message.Extra["reply"], c), message.Text)
+	} else if message.Extra["reply"] != "" {
+		message.Text = fmt.Sprintf("%v, %v", colorizeNick(message.Extra["reply"], c), message.Text)
+	}
+
 	messages := splitLines(message.Text, acceptibleLength, nick+" ")
 	return messages
 }
@@ -226,7 +234,7 @@ func formatNick(message relay.Message, c *config.Irc) string {
 	}
 
 	if c.Colorize {
-		nick = getColoredNick(message.Nick, c)
+		nick = colorizeNick(message.Nick, c)
 	} else {
 		nick = message.Nick
 	}
@@ -273,8 +281,8 @@ func djb2(nick string) int {
 	return hash
 }
 
-// getColoredNick adds color codes to the nickname.
-func getColoredNick(s string, c *config.Irc) string {
+// colorizeNick adds color codes to the nickname.
+func colorizeNick(s string, c *config.Irc) string {
 	i := djb2(s) % len(c.Palette)
 	if i < 0 {
 		i += len(c.Palette)

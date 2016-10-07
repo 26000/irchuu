@@ -14,14 +14,14 @@ A Telegram<->IRC transport.
 - [x] Coloured nicknames
 - [x] Preserve formatted text
 - [ ] /me command support
-- [ ] Replies, forwards support
+- [x] Replies, forwards support
 - [ ] Documents: serving them as links in IRC
 - [ ] Pictures: serving and Imgur uploads
 - [ ] Moderation of the Telegram group from IRC
 - [ ] Moderation of the IRC channel from Telegram
 - [ ] Invitations to IRC from Telegram
 
-- [ ] Logging to a file
+- [x] Logging to a file
 - [ ] Showing history in IRC on query
 
 - [ ] Showing moderator list from IRC in TG
@@ -30,5 +30,6 @@ A Telegram<->IRC transport.
 - [ ] Edits support
 - [ ] Sed from IRC
 - [x] Breaking long Telegram messages into several IRC messages
+- [x] Auto-reconnecting if internet lost
 
 - [ ] WeeChat plugin

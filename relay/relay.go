@@ -28,6 +28,8 @@ type Message struct {
 	FromID int    // From user ID, Telegram only
 	// In IRC: CTCP (ACTION), kick, topic
 	// In Telegram: Media: Type, width x height, size and URL;
-	// Forward: from; Pin: true, Edit: date
+	// Forward: forward, forwardDate, forwardUserID
+	// Pin: true, Edit: date
+	// Reply: reply, replyId, replyUserID
 	Extra map[string]string
 }
