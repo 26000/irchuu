@@ -74,6 +74,8 @@ flooddelay = 500 # (milliseconds) delay with which parts of multi-line message
 
 moderation = true # allow ops in IRC to kick users from Telegram
                   # (bot needs to be a moderator in Telegram)
+
+cmdprefix = ./
 `
 	return ioutil.WriteFile(file, []byte(config), os.FileMode(0600))
 }
@@ -101,6 +103,7 @@ type Irc struct {
 	FloodDelay int
 
 	Moderation bool
+	CMDPrefix  string
 
 	Debug bool
 }

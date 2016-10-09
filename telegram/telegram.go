@@ -12,6 +12,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf16"
 )
 
 // Launch launches the Telegram bot and receives updates in an endless loop.
@@ -78,6 +79,42 @@ func listenService(r *relay.Relay, c *config.Telegram, bot *tgbotapi.BotAPI) {
 		case "announce":
 			m := tgbotapi.NewMessage(c.Group, f.Arguments)
 			bot.Send(m)
+		case "count":
+			count, err := bot.GetChatMembersCount(
+				tgbotapi.ChatConfig{ChatID: c.Group})
+			if err != nil {
+				r.TeleServiceCh <- relay.ServiceMessage{
+					"announce",
+					"An error occured: \x02" + err.Error(),
+				}
+			} else {
+				r.TeleServiceCh <- relay.ServiceMessage{
+					"announce",
+					fmt.Sprintf("There are \x02%v"+
+						"\x0f users in the group.",
+						count),
+				}
+			}
+		case "ops":
+			ops, err := bot.GetChatAdministrators(
+				tgbotapi.ChatConfig{ChatID: c.Group})
+			if err != nil {
+				r.TeleServiceCh <- relay.ServiceMessage{
+					"announce",
+					"An error occured: \x02" + err.Error(),
+				}
+			} else {
+				opsStr := ""
+				for _, v := range ops {
+					opsStr += v.User.String() + " "
+				}
+				r.TeleServiceCh <- relay.ServiceMessage{
+					"announce",
+					fmt.Sprintf("Chat administrators: \x02%v"+
+						"\x0f",
+						opsStr),
+				}
+			}
 		}
 	}
 }
@@ -129,6 +166,17 @@ func processCmd(bot *tgbotapi.BotAPI, c *config.Telegram, message *tgbotapi.Mess
 		r.TeleServiceCh <- f
 	case "version":
 		m := tgbotapi.NewMessage(c.Group, "IRChuu v"+config.VERSION)
+		bot.Send(m)
+	case "help":
+		m := tgbotapi.NewMessage(c.Group, `Available commands:
+
+/help — show this help
+/version — show version info
+/topic — get IRC channel topic
+/invite — invite a user to the IRC channel
+/ops — view OPs list
+/bot — send messages to IRC bots (no nickname prefix)
+/kick — kick a user from IRC`)
 		bot.Send(m)
 	}
 }
@@ -245,9 +293,48 @@ func getFullName(user *tgbotapi.User) string {
 	return name
 }
 
+// splitSurrogatePairs returns a string with all runes which could be encoded in
+// two two-bytes UTF-16 code units split into two.
+// It is needed bacause Telegram is stupid and gives entity offsets and lengths
+// in UTF-16 code units (NOT code points).
+func splitSurrogatePairs(messageText []rune) []rune {
+	newMessageText := make([]rune, len(messageText))
+	copy(newMessageText, messageText)
+	offset := 0
+	for i, v := range messageText {
+		if p1, p2 := utf16.EncodeRune(v); p1 != p2 {
+			newMessageText = append(newMessageText[:i+offset], p1)
+			newMessageText = append(newMessageText, p2)
+			newMessageText = append(newMessageText, messageText[i+1:]...)
+			offset++
+		}
+	}
+	return newMessageText
+}
+
+// assembleSurrogatePairs reverts what splitSurrogatePairs has done.
+func assembleSurrogatePairs(messageText []rune) []rune {
+	newMessageText := make([]rune, len(messageText))
+	copy(newMessageText, messageText)
+	offset := 0
+	for i := 0; i < len(messageText); i++ {
+		if utf16.IsSurrogate(messageText[i]) {
+			if !utf16.IsSurrogate(messageText[i+1]) {
+				i--
+			}
+			p := utf16.DecodeRune(messageText[i], messageText[i+1])
+			newMessageText = append(newMessageText[:i-offset], p)
+			newMessageText = append(newMessageText, messageText[i+2:]...)
+			offset++
+		}
+		i++
+	}
+	return newMessageText
+}
+
 // translateMarkup turns Telegram's entities into IRC's codes.
 func translateMarkup(message tgbotapi.Message) string {
-	messageText := []rune(message.Text)
+	messageText := splitSurrogatePairs([]rune(message.Text))
 	if message.Entities != nil {
 		off := 0
 		for i := 0; i < len(*message.Entities); i++ {
@@ -256,28 +343,25 @@ func translateMarkup(message tgbotapi.Message) string {
 			switch e.Type {
 			case "italic":
 				messageText = surroundRunes(messageText,
-					e.Offset, e.Length, rune('\x1d'),
-					rune('\x0f'))
+					e.Offset, e.Length, '\x1d',
+					'\x0f')
 				off += 2
 			case "bold":
 				messageText = surroundRunes(messageText,
-					e.Offset, e.Length, rune('\x02'),
-					rune('\x0f'))
+					e.Offset, e.Length, '\x02',
+					'\x0f')
 				off += 2
 			case "text_link":
 				var newMessageText []rune
-				newMessageText = append(newMessageText, messageText[:e.Offset]...)
-				newMessageText = append(newMessageText, []rune(e.URL)...)
-				newMessageText = append(newMessageText, []rune(" (")...)
-				newMessageText = append(newMessageText, messageText[e.Offset:e.Offset+e.Length]...)
-				newMessageText = append(newMessageText, []rune(") ")...)
+				newMessageText = append(newMessageText, messageText[:e.Offset+e.Length]...)
+				newMessageText = append(newMessageText, []rune(" ("+e.URL+") ")...)
 				newMessageText = append(newMessageText, messageText[e.Offset+e.Length:]...)
-				off += 4 + len(e.URL)
+				off += 4 + len([]rune(e.URL))
 				messageText = newMessageText
 			}
 		}
 	}
-	return string(messageText)
+	return string(assembleSurrogatePairs(messageText))
 }
 
 // reconstructMarkup translates IRC markup to HTML.
