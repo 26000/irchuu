@@ -192,7 +192,7 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay, db *sql.DB) {
 				go irchuubase.Log(f, db, logger)
 			}
 			if strings.HasPrefix(event.Message(), c.CMDPrefix) {
-				processCmd(event, irchuu, c, r)
+				processCmd(event, irchuu, c, r, db)
 			}
 		} else {
 			logger.Printf("Message from %v: %v\n",
@@ -328,29 +328,29 @@ func formatIRCMessages(message relay.Message, c *config.Irc) []string {
 }
 
 // processCmd executes commands.
-func processCmd(event *irc.Event, irchuu *irc.Connection, c *config.Irc, r *relay.Relay) {
+func processCmd(event *irc.Event, irchuu *irc.Connection, c *config.Irc, r *relay.Relay, db *sql.DB) {
 	cmd := strings.Split(event.Message()[len(c.CMDPrefix):], " ")
 	switch cmd[0] {
 	case "help":
 		irchuu.Privmsg(c.Channel, "Available commands:")
 		irchuu.Privmsgf(c.Channel, "%vhelp — show this help",
 			c.CMDPrefix)
-		irchuu.Privmsgf(c.Channel,
-			"%vhist [n] — get [n] last messages in PM", c.CMDPrefix)
-		irchuu.Privmsgf(c.Channel,
-			"%vuhist [n] — get [n] last messages with user IDs in PM",
-			c.CMDPrefix)
-		irchuu.Privmsgf(c.Channel,
-			"%vkick [id] — kick a user in Telegram", c.CMDPrefix)
+		if db != nil {
+			irchuu.Privmsgf(c.Channel,
+				"%vhist [n] — get [n] last messages in PM", c.CMDPrefix)
+			irchuu.Privmsgf(c.Channel,
+				"%vkick [nick || full name] — kick a user in Telegram",
+				c.CMDPrefix)
+			irchuu.Privmsgf(c.Channel,
+				"%vunban [nick || full name] — unban a user in Telegram",
+				c.CMDPrefix)
+		}
 		irchuu.Privmsgf(c.Channel,
 			"%vops — show moderators in Telegram", c.CMDPrefix)
 		irchuu.Privmsgf(c.Channel,
 			"%vcount — show users count in Telegram", c.CMDPrefix)
 		irchuu.Privmsgf(c.Channel,
-			"%vunban [id] — unban a user in Telegram", c.CMDPrefix)
-		irchuu.Privmsgf(c.Channel,
 			"/ctcp %v VERSION — get version info", irchuu.GetNick())
-	case "uhist":
 	case "hist":
 	case "kick":
 	case "ops":

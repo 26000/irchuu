@@ -18,26 +18,30 @@ func Log(msg relay.Message, db *sql.DB, logger *log.Logger) {
 	}
 	if msg.Source {
 		// Telegram
-		_, err := db.Query("INSERT INTO"+
+		rows1, err := db.Query("INSERT INTO"+
 			" messages(date, source, \"text\", from_id, msg_id, extra)"+
 			" VALUES($1, $2, $3, $4, $5, $6);",
 			msg.Date, 1, msg.Text, msg.FromID, msg.ID,
 			extraString)
+		defer rows1.Close()
 		handleErrors(err, logger)
 
-		_, err = db.Query("INSERT INTO"+
-			" tg_users(id, nick, first_name, last_name)"+
-			" VALUES($1, $2, $3, $4) ON CONFLICT (id) DO UPDATE"+
-			" SET id = $1, nick = $2, first_name = $3, last_name = $4;",
-			msg.FromID, msg.Nick, msg.FirstName, msg.LastName)
+		rows2, err := db.Query("INSERT INTO"+
+			" tg_users(id, nick, first_name, last_name, last_active)"+
+			" VALUES($1, $2, $3, $4, $5) ON CONFLICT (id) DO UPDATE"+
+			" SET id = $1, nick = $2, first_name = $3,"+
+			" last_name = $4, last_active = $5;",
+			msg.FromID, msg.Nick, msg.FirstName, msg.LastName, msg.Date)
+		defer rows2.Close()
 		handleErrors(err, logger)
 	} else {
 		// IRC
-		_, err := db.Query("INSERT INTO"+
+		rows, err := db.Query("INSERT INTO"+
 			" messages(date, source, nick, \"text\", extra)"+
 			" VALUES($1, $2, $3, $4, $5);",
 			msg.Date, 0, msg.Nick, msg.Text,
 			extraString)
+		defer rows.Close()
 		handleErrors(err, logger)
 	}
 }
@@ -50,16 +54,19 @@ func Init(dbURI string) *sql.DB {
 	if !handleErrors(err, logger) {
 		return nil
 	}
-	_, err = db.Query("CREATE TABLE IF NOT EXISTS tg_users" +
+	rows1, err := db.Query("CREATE TABLE IF NOT EXISTS tg_users" +
 		" (id INT PRIMARY KEY NOT NULL, nick VARCHAR(32)," +
-		" first_name TEXT, last_name TEXT);")
+		" first_name TEXT, last_name TEXT, last_active TIMESTAMP" +
+		" WITH TIME ZONE);")
+	defer rows1.Close()
 	if !handleErrors(err, logger) {
 		return nil
 	}
-	_, err = db.Query("CREATE TABLE IF NOT EXISTS messages" +
-		" (id BIGSERIAL, date TIMESTAMP NOT NULL," +
+	rows2, err := db.Query("CREATE TABLE IF NOT EXISTS messages" +
+		" (id BIGSERIAL, date TIMESTAMP WITH TIME ZONE NOT NULL," +
 		" source BOOLEAN, nick TEXT, \"text\" TEXT, from_id INT," +
 		" msg_id INT, extra JSONB);")
+	defer rows2.Close()
 	if !handleErrors(err, logger) {
 		return nil
 	}
