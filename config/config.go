@@ -7,31 +7,42 @@ import (
 	"os"
 )
 
-const VERSION = "0.0.0"
+const VERSION = "0.1.0"
 
 // ReadConfig reads the configuration file.
-func ReadConfig(path string) (error, *Irc, *Telegram) {
+func ReadConfig(path string) (error, *Irc, *Telegram, string) {
 	cfg, err := ini.InsensitiveLoad(path)
 	cfg.BlockMode = false
 	tg, irc := new(Telegram), new(Irc)
 	err = cfg.Section("telegram").MapTo(tg)
 	if err != nil {
-		return err, irc, tg
+		return err, irc, tg, ""
 	}
 	err = cfg.Section("irc").MapTo(irc)
 	if err != nil {
-		return err, irc, tg
+		return err, irc, tg, ""
 	}
 
 	tg.Prefix = html.EscapeString(tg.Prefix)
 	tg.Postfix = html.EscapeString(tg.Postfix)
 
-	return nil, irc, tg
+	dbURIKey, err := cfg.Section("irchuu").GetKey("dburi")
+	if err != nil {
+		return err, irc, tg, ""
+	}
+
+	dbURI := dbURIKey.String()
+
+	return nil, irc, tg, dbURI
 }
 
 // PopulateConfig copies the sample config to <path>.
 func PopulateConfig(file string) error {
 	config := `# IRChuu configuration file. See https://github.com/26000/irchuu for help.
+[irchuu]
+dburi = # URI of your PostgreSQL database
+        # if blank, logging and kicking Telegram users from IRC will be unavailable
+
 [telegram]
 token = myToken
 group = 7654321

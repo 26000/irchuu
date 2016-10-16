@@ -1,8 +1,10 @@
+// irchuu contains everything related to the IRC part of IRChuu.
 package irchuu
 
 import (
 	"fmt"
 	"github.com/26000/irchuu/config"
+	"github.com/26000/irchuu/db"
 	"github.com/26000/irchuu/relay"
 	"github.com/thoj/go-ircevent"
 	"log"
@@ -14,7 +16,7 @@ import (
 )
 
 // Launch starts the IRC bot and waits for messages.
-func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay) {
+func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay, dbURI string) {
 	defer wg.Done()
 
 	logger := log.New(os.Stdout, "IRC ", log.LstdFlags)
@@ -185,7 +187,9 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay) {
 		if event.Arguments[0] == c.Channel {
 			f := formatMessage(event.Nick, event.Message(), "")
 			r.IRCh <- f
-			r.LogCh <- f
+			if dbURI != "" {
+				go irchuubase.Log(f, dbURI, logger)
+			}
 			if strings.HasPrefix(event.Message(), c.CMDPrefix) {
 				processCmd(event, irchuu, c, r)
 			}
@@ -203,7 +207,9 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay) {
 		if event.Arguments[0] == c.Channel {
 			f := formatMessage(event.Nick, event.Message(), "ACTION")
 			r.IRCh <- f
-			r.LogCh <- f
+			if dbURI != "" {
+				go irchuubase.Log(f, dbURI, logger)
+			}
 		} else {
 			logger.Printf("CTCP ACTION from %v: %v\n",
 				event.Nick, event.Message())
@@ -214,7 +220,9 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay) {
 		if event.Arguments[0] == c.Channel {
 			f := formatMessage(event.Nick, event.Arguments[1], "KICK")
 			r.IRCh <- f
-			r.LogCh <- f
+			if dbURI != "" {
+				go irchuubase.Log(f, dbURI, logger)
+			}
 		}
 	})
 
@@ -222,7 +230,9 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay) {
 		if event.Arguments[0] == c.Channel {
 			f := formatMessage(event.Nick, event.Arguments[1], "TOPIC")
 			r.IRCh <- f
-			r.LogCh <- f
+			if dbURI != "" {
+				go irchuubase.Log(f, dbURI, logger)
+			}
 		}
 	})
 
@@ -382,7 +392,11 @@ func formatNick(message relay.Message, c *config.Irc) string {
 	addAt := true
 
 	if message.Nick == "" {
-		message.Nick = message.Name
+		name := message.FirstName
+		if message.LastName != "" {
+			name += " " + message.LastName
+		}
+		message.Nick = name
 		addAt = false
 	}
 
@@ -417,10 +431,10 @@ func formatMessage(nick string, text string, action string) relay.Message {
 	}
 
 	return relay.Message{
-		Source: "IRC",
+		Date:   time.Now(),
+		Source: false,
 		Nick:   nick,
 		Text:   text,
-		Date:   time.Now().Unix(),
 		Extra:  extra,
 	}
 }

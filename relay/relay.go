@@ -1,13 +1,14 @@
 package relay
 
+import "time"
+
 // NewRelay creates a new Relay.
 func NewRelay() *Relay {
 	teleCh := make(chan Message, 100)
 	irCh := make(chan Message, 100)
-	logCh := make(chan Message, 100)
 	teleSCh := make(chan ServiceMessage, 20)
 	ircSCh := make(chan ServiceMessage, 20)
-	return &Relay{teleCh, teleSCh, irCh, ircSCh, logCh}
+	return &Relay{teleCh, teleSCh, irCh, ircSCh}
 }
 
 // Relay contains three channels: for IRC messages read by Telegram, for
@@ -18,19 +19,20 @@ type Relay struct {
 	TeleServiceCh chan ServiceMessage
 	IRCh          chan Message
 	IRCServiceCh  chan ServiceMessage
-	LogCh         chan Message
 }
 
 // Message represents a generic message which may be either from TG or IRC.
 type Message struct {
-	Date   int64  // UNIX time
-	Source string // IRC or TG
-	Nick   string // Nickname in both IRC and Telegram
+	Date   time.Time // Time
+	Source bool      // IRC (false) or TG (true)
+	Nick   string    // Nickname in both IRC and Telegram
 	Text   string
 
-	ID     int    // Message ID, Telegram only
-	Name   string // Realname, Telegram only
-	FromID int    // From user ID, Telegram only
+	ID        int    // Message ID, Telegram only
+	FromID    int    // From user ID, Telegram only
+	FirstName string // Realname, Telegram only
+	LastName  string // Realname, Telegram only
+
 	// In IRC: CTCP (ACTION), kick, topic
 	// In Telegram: Media: Type, width x height, size and URL;
 	// Forward: forward (nick), forwardDate, forwardUserID

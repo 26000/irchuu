@@ -1,8 +1,10 @@
+// telegram contains everything related to the Telegram part of IRChuu.
 package telegram
 
 import (
 	"fmt"
 	"github.com/26000/irchuu/config"
+	"github.com/26000/irchuu/db"
 	"github.com/26000/irchuu/relay"
 	"gopkg.in/telegram-bot-api.v4"
 	"html"
@@ -16,7 +18,7 @@ import (
 )
 
 // Launch launches the Telegram bot and receives updates in an endless loop.
-func Launch(c *config.Telegram, wg *sync.WaitGroup, r *relay.Relay) {
+func Launch(c *config.Telegram, wg *sync.WaitGroup, r *relay.Relay, dbURI string) {
 	defer wg.Done()
 	logger := log.New(os.Stdout, " TG ", log.LstdFlags)
 	bot, err := tgbotapi.NewBotAPI(c.Token)
@@ -41,7 +43,7 @@ func Launch(c *config.Telegram, wg *sync.WaitGroup, r *relay.Relay) {
 		}
 
 		if update.Message.Chat.Type != "private" {
-			processChatMessage(bot, c, update.Message, logger, r)
+			processChatMessage(bot, c, update.Message, logger, r, dbURI)
 		} else {
 			processPM(bot, c, update.Message, logger)
 		}
@@ -50,7 +52,7 @@ func Launch(c *config.Telegram, wg *sync.WaitGroup, r *relay.Relay) {
 
 // processChatMessage processes messages from public groups, sending them to
 // IRC and Log channels.
-func processChatMessage(bot *tgbotapi.BotAPI, c *config.Telegram, message *tgbotapi.Message, logger *log.Logger, r *relay.Relay) {
+func processChatMessage(bot *tgbotapi.BotAPI, c *config.Telegram, message *tgbotapi.Message, logger *log.Logger, r *relay.Relay, dbURI string) {
 	if message.Chat.ID != c.Group {
 		msg := tgbotapi.NewMessage(message.Chat.ID,
 			fmt.Sprintf("I'm not configured to work in this group (group id: %d).",
@@ -65,7 +67,9 @@ func processChatMessage(bot *tgbotapi.BotAPI, c *config.Telegram, message *tgbot
 	if c.TTL == 0 || c.TTL > (time.Now().Unix()-int64(message.Date)) {
 		f := formatMessage(message, bot.Self.ID, c.Prefix)
 		r.TeleCh <- f
-		r.LogCh <- f
+		if dbURI != "" {
+			go irchuubase.Log(f, dbURI, logger)
+		}
 		if cmd := message.Command(); cmd != "" {
 			processCmd(bot, c, message, cmd, r)
 		}
@@ -184,16 +188,11 @@ func processCmd(bot *tgbotapi.BotAPI, c *config.Telegram, message *tgbotapi.Mess
 // processPM replies to private messages from Telegram, sending them info
 // about the bot.
 func processPM(bot *tgbotapi.BotAPI, c *config.Telegram, message *tgbotapi.Message, logger *log.Logger) {
-	var name string
-
-	if message.From.UserName != "" {
-		name = "@" + message.From.UserName
-	} else {
-		name = fmt.Sprintf("%v %v", message.From.FirstName, message.From.LastName)
-	}
-	logger.Printf("Incoming PM from %v: %v\n", name, message.Text)
+	logger.Printf("Incoming PM from %v: %v\n", message.From.String(),
+		message.Text)
 	msg := tgbotapi.NewMessage(message.Chat.ID,
-		"I only work in my group.\nIf you want to know more about me, visit my [GitHub](https://github.com/26000/irchuu).")
+		"I only work in my group.\nIf you want to know more about me, "+
+			"visit my [GitHub](https://github.com/26000/irchuu).")
 	msg.ParseMode = "Markdown"
 	bot.Send(msg)
 }
@@ -261,21 +260,17 @@ func formatMessage(message *tgbotapi.Message, id int, prefix string) relay.Messa
 		extra["edit"] = string(message.EditDate)
 	}
 
-	name := message.From.FirstName
-	if message.From.LastName != "" {
-		name = name + " " + message.From.LastName
-	}
-
 	return relay.Message{
-		Date:   int64(message.Date),
+		Date:   message.Time(),
+		Source: false,
 		Nick:   message.From.UserName,
-		Source: "TG",
 		Text:   message.Text,
 
-		ID:     message.MessageID,
-		Name:   name,
-		FromID: message.From.ID,
-		Extra:  extra,
+		ID:        message.MessageID,
+		FromID:    message.From.ID,
+		FirstName: message.From.FirstName,
+		LastName:  message.From.LastName,
+		Extra:     extra,
 	}
 }
 
@@ -305,7 +300,8 @@ func splitSurrogatePairs(messageText []rune) []rune {
 		if p1, p2 := utf16.EncodeRune(v); p1 != p2 {
 			newMessageText = append(newMessageText[:i+offset], p1)
 			newMessageText = append(newMessageText, p2)
-			newMessageText = append(newMessageText, messageText[i+1:]...)
+			newMessageText = append(newMessageText,
+				messageText[i+1:]...)
 			offset++
 		}
 	}
@@ -324,7 +320,8 @@ func assembleSurrogatePairs(messageText []rune) []rune {
 			}
 			p := utf16.DecodeRune(messageText[i], messageText[i+1])
 			newMessageText = append(newMessageText[:i-offset], p)
-			newMessageText = append(newMessageText, messageText[i+2:]...)
+			newMessageText = append(newMessageText,
+				messageText[i+2:]...)
 			offset++
 		}
 		i++
@@ -353,9 +350,12 @@ func translateMarkup(message tgbotapi.Message) string {
 				off += 2
 			case "text_link":
 				var newMessageText []rune
-				newMessageText = append(newMessageText, messageText[:e.Offset+e.Length]...)
-				newMessageText = append(newMessageText, []rune(" ("+e.URL+") ")...)
-				newMessageText = append(newMessageText, messageText[e.Offset+e.Length:]...)
+				newMessageText = append(newMessageText,
+					messageText[:e.Offset+e.Length]...)
+				newMessageText = append(newMessageText,
+					[]rune(" ("+e.URL+") ")...)
+				newMessageText = append(newMessageText,
+					messageText[e.Offset+e.Length:]...)
 				off += 4 + len([]rune(e.URL))
 				messageText = newMessageText
 			}
