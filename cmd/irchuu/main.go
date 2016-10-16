@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
 	"github.com/26000/irchuu/config"
 	"github.com/26000/irchuu/db"
@@ -31,16 +32,15 @@ func main() {
 
 	r := relay.NewRelay()
 
+	var db *sql.DB
+
 	if dbURI != "" {
-		// if failed to initialize the database, don't use it
-		if !irchuubase.Init(dbURI) {
-			dbURI = ""
-		}
+		db = irchuubase.Init(dbURI)
 	}
 
 	var wg sync.WaitGroup
 	wg.Add(2)
-	go irchuu.Launch(irc, &wg, r, dbURI)
-	go telegram.Launch(tg, &wg, r, dbURI)
+	go irchuu.Launch(irc, &wg, r, db)
+	go telegram.Launch(tg, &wg, r, db)
 	wg.Wait()
 }

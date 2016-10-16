@@ -2,6 +2,7 @@
 package telegram
 
 import (
+	"database/sql"
 	"fmt"
 	"github.com/26000/irchuu/config"
 	"github.com/26000/irchuu/db"
@@ -18,7 +19,7 @@ import (
 )
 
 // Launch launches the Telegram bot and receives updates in an endless loop.
-func Launch(c *config.Telegram, wg *sync.WaitGroup, r *relay.Relay, dbURI string) {
+func Launch(c *config.Telegram, wg *sync.WaitGroup, r *relay.Relay, db *sql.DB) {
 	defer wg.Done()
 	logger := log.New(os.Stdout, " TG ", log.LstdFlags)
 	bot, err := tgbotapi.NewBotAPI(c.Token)
@@ -43,7 +44,7 @@ func Launch(c *config.Telegram, wg *sync.WaitGroup, r *relay.Relay, dbURI string
 		}
 
 		if update.Message.Chat.Type != "private" {
-			processChatMessage(bot, c, update.Message, logger, r, dbURI)
+			processChatMessage(bot, c, update.Message, logger, r, db)
 		} else {
 			processPM(bot, c, update.Message, logger)
 		}
@@ -52,7 +53,7 @@ func Launch(c *config.Telegram, wg *sync.WaitGroup, r *relay.Relay, dbURI string
 
 // processChatMessage processes messages from public groups, sending them to
 // IRC and Log channels.
-func processChatMessage(bot *tgbotapi.BotAPI, c *config.Telegram, message *tgbotapi.Message, logger *log.Logger, r *relay.Relay, dbURI string) {
+func processChatMessage(bot *tgbotapi.BotAPI, c *config.Telegram, message *tgbotapi.Message, logger *log.Logger, r *relay.Relay, db *sql.DB) {
 	if message.Chat.ID != c.Group {
 		msg := tgbotapi.NewMessage(message.Chat.ID,
 			fmt.Sprintf("I'm not configured to work in this group (group id: %d).",
@@ -67,8 +68,8 @@ func processChatMessage(bot *tgbotapi.BotAPI, c *config.Telegram, message *tgbot
 	if c.TTL == 0 || c.TTL > (time.Now().Unix()-int64(message.Date)) {
 		f := formatMessage(message, bot.Self.ID, c.Prefix)
 		r.TeleCh <- f
-		if dbURI != "" {
-			go irchuubase.Log(f, dbURI, logger)
+		if db != nil {
+			go irchuubase.Log(f, db, logger)
 		}
 		if cmd := message.Command(); cmd != "" {
 			processCmd(bot, c, message, cmd, r)

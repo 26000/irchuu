@@ -10,10 +10,7 @@ import (
 )
 
 // Log inserts a message into the DB.
-func Log(msg relay.Message, dbURI string, logger *log.Logger) {
-	db, err := sql.Open("postgres", dbURI)
-	handleErrors(err, logger)
-
+func Log(msg relay.Message, db *sql.DB, logger *log.Logger) {
 	extraString, err := json.Marshal(msg.Extra)
 	if err != nil {
 		logger.Printf("An error occurred while marshalling the extra data: %v.",
@@ -46,28 +43,28 @@ func Log(msg relay.Message, dbURI string, logger *log.Logger) {
 }
 
 // Init creates tables needed for IRChuu and returns true on success.
-func Init(dbURI string) bool {
+func Init(dbURI string) *sql.DB {
 	logger := log.New(os.Stdout, " DB ", log.LstdFlags)
 
 	db, err := sql.Open("postgres", dbURI)
 	if !handleErrors(err, logger) {
-		return false
+		return nil
 	}
 	_, err = db.Query("CREATE TABLE IF NOT EXISTS tg_users" +
 		" (id INT PRIMARY KEY NOT NULL, nick VARCHAR(32)," +
 		" first_name TEXT, last_name TEXT);")
 	if !handleErrors(err, logger) {
-		return false
+		return nil
 	}
 	_, err = db.Query("CREATE TABLE IF NOT EXISTS messages" +
 		" (id BIGSERIAL, date TIMESTAMP NOT NULL," +
 		" source BOOLEAN, nick TEXT, \"text\" TEXT, from_id INT," +
 		" msg_id INT, extra JSONB);")
 	if !handleErrors(err, logger) {
-		return false
+		return nil
 	}
 	log.Println("Successfully initialized DB")
-	return true
+	return db
 }
 
 // handleErrors logs the error and returns false if it is not nil. Otherwise

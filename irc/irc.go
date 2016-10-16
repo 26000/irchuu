@@ -2,6 +2,7 @@
 package irchuu
 
 import (
+	"database/sql"
 	"fmt"
 	"github.com/26000/irchuu/config"
 	"github.com/26000/irchuu/db"
@@ -16,7 +17,7 @@ import (
 )
 
 // Launch starts the IRC bot and waits for messages.
-func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay, dbURI string) {
+func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay, db *sql.DB) {
 	defer wg.Done()
 
 	logger := log.New(os.Stdout, "IRC ", log.LstdFlags)
@@ -187,8 +188,8 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay, dbURI string) {
 		if event.Arguments[0] == c.Channel {
 			f := formatMessage(event.Nick, event.Message(), "")
 			r.IRCh <- f
-			if dbURI != "" {
-				go irchuubase.Log(f, dbURI, logger)
+			if db != nil {
+				go irchuubase.Log(f, db, logger)
 			}
 			if strings.HasPrefix(event.Message(), c.CMDPrefix) {
 				processCmd(event, irchuu, c, r)
@@ -207,8 +208,8 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay, dbURI string) {
 		if event.Arguments[0] == c.Channel {
 			f := formatMessage(event.Nick, event.Message(), "ACTION")
 			r.IRCh <- f
-			if dbURI != "" {
-				go irchuubase.Log(f, dbURI, logger)
+			if db != nil {
+				go irchuubase.Log(f, db, logger)
 			}
 		} else {
 			logger.Printf("CTCP ACTION from %v: %v\n",
@@ -220,8 +221,8 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay, dbURI string) {
 		if event.Arguments[0] == c.Channel {
 			f := formatMessage(event.Nick, event.Arguments[1], "KICK")
 			r.IRCh <- f
-			if dbURI != "" {
-				go irchuubase.Log(f, dbURI, logger)
+			if db != nil {
+				go irchuubase.Log(f, db, logger)
 			}
 		}
 	})
@@ -230,8 +231,8 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay, dbURI string) {
 		if event.Arguments[0] == c.Channel {
 			f := formatMessage(event.Nick, event.Arguments[1], "TOPIC")
 			r.IRCh <- f
-			if dbURI != "" {
-				go irchuubase.Log(f, dbURI, logger)
+			if db != nil {
+				go irchuubase.Log(f, db, logger)
 			}
 		}
 	})
