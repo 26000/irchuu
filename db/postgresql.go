@@ -21,11 +21,24 @@ func Log(msg relay.Message, dbURI string, logger *log.Logger) {
 	}
 	if msg.Source {
 		// Telegram
+		_, err := db.Query("INSERT INTO"+
+			" messages(date, source, \"text\", from_id, msg_id, extra)"+
+			" VALUES($1, $2, $3, $4, $5, $6);",
+			msg.Date, 1, msg.Text, msg.FromID, msg.ID,
+			extraString)
+		handleErrors(err, logger)
+
+		_, err = db.Query("INSERT INTO"+
+			" tg_users(id, nick, first_name, last_name)"+
+			" VALUES($1, $2, $3, $4) ON CONFLICT (id) DO UPDATE"+
+			" SET id = $1, nick = $2, first_name = $3, last_name = $4;",
+			msg.FromID, msg.Nick, msg.FirstName, msg.LastName)
+		handleErrors(err, logger)
 	} else {
 		// IRC
 		_, err := db.Query("INSERT INTO"+
 			" messages(date, source, nick, \"text\", extra)"+
-			" VALUES($1, $2, $3, $4, $5)",
+			" VALUES($1, $2, $3, $4, $5);",
 			msg.Date, 0, msg.Nick, msg.Text,
 			extraString)
 		handleErrors(err, logger)
@@ -61,7 +74,7 @@ func Init(dbURI string) bool {
 // returns true.
 func handleErrors(err error, logger *log.Logger) bool {
 	if err, ok := err.(*pq.Error); ok {
-		logger.Println("Database error:", err.Code.Name())
+		logger.Printf("Database error: %v\n %v\n", err.Code.Name(), err)
 		return false
 	}
 	return true

@@ -262,7 +262,7 @@ func formatMessage(message *tgbotapi.Message, id int, prefix string) relay.Messa
 
 	return relay.Message{
 		Date:   message.Time(),
-		Source: false,
+		Source: true,
 		Nick:   message.From.UserName,
 		Text:   message.Text,
 
