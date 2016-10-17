@@ -21,11 +21,11 @@ A Telegram<->IRC transport.
 - [x] Moderation of the IRC channel from Telegram
 - [x] Invitations to IRC from Telegram
 
-- [x] Logging to a file
-- [ ] Showing history in IRC on query
+- [x] Logging to a DB
+- [x] Showing history in IRC on query
 
 - [x] Showing moderator list from IRC in TG
-- [ ] Showing moderator list from TG in IRC
+- [x] Showing moderator list from TG in IRC
 - [x] Ability to contact IRC bots
 - [x] Edits support
 - [x] Breaking long Telegram messages into several IRC messages

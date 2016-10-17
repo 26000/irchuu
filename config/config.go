@@ -85,8 +85,11 @@ flooddelay = 500 # (milliseconds) delay with which parts of multi-line message
 
 moderation = true # allow ops in IRC to kick users from Telegram
                   # (bot needs to be a moderator in Telegram)
+                  # works only when dbURI is set
 
 cmdprefix = ./
+maxhist = 40 # maximum number of messages sent on ./hist command in IRC
+             # works only when dbURI is set
 `
 	return ioutil.WriteFile(file, []byte(config), os.FileMode(0600))
 }
@@ -115,6 +118,7 @@ type Irc struct {
 
 	Moderation bool
 	CMDPrefix  string
+	MaxHist    int
 
 	Debug bool
 }

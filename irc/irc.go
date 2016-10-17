@@ -10,6 +10,7 @@ import (
 	"github.com/thoj/go-ircevent"
 	"log"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -198,9 +199,9 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay, db *sql.DB) {
 			logger.Printf("Message from %v: %v\n",
 				event.Nick, event.Message())
 			irchuu.Privmsg(event.Nick,
-				"I work only on my channel. "+
-					"https://github.com/26000/irchuu"+
-					"for more info.")
+				"I work only on my channel."+
+					" https://github.com/26000/irchuu"+
+					" for more info.")
 		}
 	})
 
@@ -261,8 +262,8 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay, db *sql.DB) {
 func relayMessagesToIRC(r *relay.Relay, c *config.Irc, irchuu *irc.Connection) {
 	for message := range r.TeleCh {
 		messages := formatIRCMessages(message, c)
-		for m := range messages {
-			irchuu.Privmsg(c.Channel, messages[m])
+		for _, m := range messages {
+			irchuu.Privmsg(c.Channel, m)
 			if c.FloodDelay != 0 {
 				time.Sleep(time.Duration(c.FloodDelay) * time.Millisecond)
 			}
@@ -338,12 +339,14 @@ func processCmd(event *irc.Event, irchuu *irc.Connection, c *config.Irc, r *rela
 		if db != nil {
 			irchuu.Privmsgf(c.Channel,
 				"%vhist [n] — get [n] last messages in PM", c.CMDPrefix)
-			irchuu.Privmsgf(c.Channel,
-				"%vkick [nick || full name] — kick a user in Telegram",
-				c.CMDPrefix)
-			irchuu.Privmsgf(c.Channel,
-				"%vunban [nick || full name] — unban a user in Telegram",
-				c.CMDPrefix)
+			if c.Moderation {
+				irchuu.Privmsgf(c.Channel,
+					"%vkick [nick || full name] — kick a user in Telegram",
+					c.CMDPrefix)
+				irchuu.Privmsgf(c.Channel,
+					"%vunban [nick || full name] — unban a user in Telegram",
+					c.CMDPrefix)
+			}
 		}
 		irchuu.Privmsgf(c.Channel,
 			"%vops — show moderators in Telegram", c.CMDPrefix)
@@ -352,12 +355,49 @@ func processCmd(event *irc.Event, irchuu *irc.Connection, c *config.Irc, r *rela
 		irchuu.Privmsgf(c.Channel,
 			"/ctcp %v VERSION — get version info", irchuu.GetNick())
 	case "hist":
+		if db != nil {
+			var n int
+			if len(cmd) > 1 && cmd[1] != "" {
+				n, _ = strconv.Atoi(cmd[1])
+			}
+			go sendHistory(db, event.Nick, irchuu, c, n)
+		}
 	case "kick":
 	case "ops":
 		r.IRCServiceCh <- relay.ServiceMessage{"ops", ""}
 	case "count":
 		r.IRCServiceCh <- relay.ServiceMessage{"count", ""}
 	case "unban":
+	}
+}
+
+// sendHistory retrieves the message history from DB and sends it to <nick>.
+func sendHistory(db *sql.DB, nick string, irchuu *irc.Connection, c *config.Irc, n int) {
+	if n == 0 || n > c.MaxHist {
+		n = c.MaxHist
+	}
+	var msgs []relay.Message
+	msgs, err := irchuubase.GetMessages(db, n)
+	if err != nil {
+		irchuu.Privmsgf(c.Channel, "%v: an error occurred during your request.",
+			nick)
+		return
+	}
+	l := len(msgs) - 1
+	for m := range msgs {
+		msg := msgs[l-m]
+		msg.Text = "[\x0310" + msg.Date.Format("15:04:05") + "\x0f] " + msg.Text
+		if !msg.Source {
+			msg.FirstName = msg.Nick
+			msg.Nick = ""
+		}
+		rawMsgs := formatIRCMessages(msg, c)
+		for rawMsg := range rawMsgs {
+			irchuu.Privmsg(nick, rawMsgs[rawMsg])
+			if c.FloodDelay != 0 {
+				time.Sleep(time.Duration(c.FloodDelay) * time.Millisecond)
+			}
+		}
 	}
 }
 

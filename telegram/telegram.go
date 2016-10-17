@@ -173,15 +173,22 @@ func processCmd(bot *tgbotapi.BotAPI, c *config.Telegram, message *tgbotapi.Mess
 		m := tgbotapi.NewMessage(c.Group, "IRChuu v"+config.VERSION)
 		bot.Send(m)
 	case "help":
-		m := tgbotapi.NewMessage(c.Group, `Available commands:
+		text := `Available commands:
 
 /help — show this help
 /version — show version info
 /topic — get IRC channel topic
-/invite — invite a user to the IRC channel
-/ops — view OPs list
-/bot — send messages to IRC bots (no nickname prefix)
-/kick — kick a user from IRC`)
+/ops — view OPs list`
+		if c.AllowInvites {
+			text += "\n/invite [nick] — invite a user to the IRC channel"
+		}
+		if c.Moderation {
+			text += "\n/kick — kick a user from IRC"
+		}
+		if c.AllowBots {
+			text += "\n/bot [message] — send messages to IRC bots (no nickname prefix)"
+		}
+		m := tgbotapi.NewMessage(c.Group, text)
 		bot.Send(m)
 	}
 }

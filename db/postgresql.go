@@ -7,6 +7,7 @@ import (
 	"github.com/26000/irchuu/relay"
 	"log"
 	"os"
+	"time"
 )
 
 // Log inserts a message into the DB.
@@ -72,6 +73,42 @@ func Init(dbURI string) *sql.DB {
 	}
 	log.Println("Successfully initialized DB")
 	return db
+}
+
+// GetMessages gets n last messages and returns them in a slice of relay.Message.
+func GetMessages(db *sql.DB, n int) ([]relay.Message, error) {
+	msgs := make([]relay.Message, n)
+	rows, err := db.Query(`SELECT date, source, coalesce(messages.nick,
+tg_users.nick), text, msg_id, from_id, first_name, last_name, extra FROM messages
+LEFT JOIN tg_users
+ON tg_users.id = messages.from_id ORDER BY date DESC LIMIT $1;`, n)
+	defer rows.Close()
+
+	if err != nil {
+		return msgs, err
+	}
+	i := 0
+	for rows.Next() {
+		var (
+			date      time.Time
+			source    bool
+			nick      string
+			text      string
+			ID        int
+			fromID    int
+			firstName string
+			lastName  string
+			extras    []byte
+			extra     map[string]string
+		)
+		rows.Scan(&date, &source, &nick, &text, &ID, &fromID, &firstName,
+			&lastName, &extras)
+		err = json.Unmarshal(extras, extra)
+		msgs[i] = relay.Message{date, source, nick, text, ID,
+			fromID, firstName, lastName, extra}
+		i++
+	}
+	return msgs, nil
 }
 
 // handleErrors logs the error and returns false if it is not nil. Otherwise
