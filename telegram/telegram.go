@@ -82,7 +82,7 @@ func listenService(r *relay.Relay, c *config.Telegram, bot *tgbotapi.BotAPI) {
 	for f := range r.IRCServiceCh {
 		switch f.Command {
 		case "announce":
-			m := tgbotapi.NewMessage(c.Group, f.Arguments)
+			m := tgbotapi.NewMessage(c.Group, f.Arguments[0])
 			bot.Send(m)
 		case "count":
 			count, err := bot.GetChatMembersCount(
@@ -90,14 +90,14 @@ func listenService(r *relay.Relay, c *config.Telegram, bot *tgbotapi.BotAPI) {
 			if err != nil {
 				r.TeleServiceCh <- relay.ServiceMessage{
 					"announce",
-					"An error occured: \x02" + err.Error(),
+					[]string{"An error occured: \x02" + err.Error()},
 				}
 			} else {
 				r.TeleServiceCh <- relay.ServiceMessage{
 					"announce",
-					fmt.Sprintf("There are \x02%v"+
+					[]string{fmt.Sprintf("There are \x02%v"+
 						"\x0f users in the group.",
-						count),
+						count)},
 				}
 			}
 		case "ops":
@@ -106,7 +106,8 @@ func listenService(r *relay.Relay, c *config.Telegram, bot *tgbotapi.BotAPI) {
 			if err != nil {
 				r.TeleServiceCh <- relay.ServiceMessage{
 					"announce",
-					"An error occured: \x02" + err.Error(),
+					[]string{"An error occured: \x02" +
+						err.Error()},
 				}
 			} else {
 				opsStr := ""
@@ -115,9 +116,10 @@ func listenService(r *relay.Relay, c *config.Telegram, bot *tgbotapi.BotAPI) {
 				}
 				r.TeleServiceCh <- relay.ServiceMessage{
 					"announce",
-					fmt.Sprintf("Chat administrators: \x02%v"+
-						"\x0f",
-						opsStr),
+					[]string{fmt.Sprintf(
+						"Chat administrators: \x02%v"+
+							"\x0f",
+						opsStr)},
 				}
 			}
 		}
@@ -138,7 +140,7 @@ func processCmd(bot *tgbotapi.BotAPI, c *config.Telegram, message *tgbotapi.Mess
 				case "administrator":
 					fallthrough
 				case "creator":
-					f := relay.ServiceMessage{"kick", arg}
+					f := relay.ServiceMessage{"kick", []string{arg, message.From.String()}}
 					r.TeleServiceCh <- f
 				case "member":
 					m := tgbotapi.NewMessage(c.Group,
@@ -154,20 +156,20 @@ func processCmd(bot *tgbotapi.BotAPI, c *config.Telegram, message *tgbotapi.Mess
 			}
 		}
 	case "ops":
-		f := relay.ServiceMessage{"ops", arg}
+		f := relay.ServiceMessage{"ops", []string{arg}}
 		r.TeleServiceCh <- f
 	case "bot":
 		if c.AllowBots {
-			f := relay.ServiceMessage{"bot", arg}
+			f := relay.ServiceMessage{"bot", []string{arg}}
 			r.TeleServiceCh <- f
 		}
 	case "invite":
 		if c.AllowInvites {
-			f := relay.ServiceMessage{"invite", arg}
+			f := relay.ServiceMessage{"invite", []string{arg}}
 			r.TeleServiceCh <- f
 		}
 	case "topic":
-		f := relay.ServiceMessage{"topic", arg}
+		f := relay.ServiceMessage{"topic", nil}
 		r.TeleServiceCh <- f
 	case "version":
 		m := tgbotapi.NewMessage(c.Group, "IRChuu v"+config.VERSION)

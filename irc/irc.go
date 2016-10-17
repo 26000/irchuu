@@ -101,7 +101,7 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay, db *sql.DB) {
 	// You are not channel operator
 	irchuu.AddCallback("482", func(event *irc.Event) {
 		if event.Arguments[1] == c.Channel {
-			r.IRCServiceCh <- relay.ServiceMessage{"announce", "I need to be an operator in IRC for that action."}
+			r.IRCServiceCh <- relay.ServiceMessage{"announce", []string{"I need to be an operator in IRC for that action."}}
 		}
 	})
 
@@ -114,8 +114,8 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay, db *sql.DB) {
 
 	irchuu.AddCallback("341", func(event *irc.Event) {
 		s := relay.ServiceMessage{"announce",
-			fmt.Sprintf("Invited %v to %v.", event.Arguments[1],
-				event.Arguments[2])}
+			[]string{fmt.Sprintf("Invited %v to %v.", event.Arguments[1],
+				event.Arguments[2])}}
 
 		r.IRCServiceCh <- s
 		r.TeleServiceCh <- s
@@ -124,15 +124,15 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay, db *sql.DB) {
 	// TODO: add bold for these messages
 	irchuu.AddCallback("443", func(event *irc.Event) {
 		s := relay.ServiceMessage{"announce",
-			fmt.Sprintf("User %v is already on channel.",
-				event.Arguments[1])}
+			[]string{fmt.Sprintf("User %v is already on channel.",
+				event.Arguments[1])}}
 
 		r.IRCServiceCh <- s
 	})
 
 	irchuu.AddCallback("401", func(event *irc.Event) {
 		s := relay.ServiceMessage{"announce",
-			fmt.Sprintf("No such nick: %v.", event.Arguments[1])}
+			[]string{fmt.Sprintf("No such nick: %v.", event.Arguments[1])}}
 
 		r.IRCServiceCh <- s
 		r.TeleServiceCh <- s
@@ -150,8 +150,8 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay, db *sql.DB) {
 	irchuu.AddCallback("332", func(event *irc.Event) {
 		if event.Arguments[1] == c.Channel {
 			r.IRCServiceCh <- relay.ServiceMessage{"announce",
-				fmt.Sprintf("The topic for %v is %v.",
-					c.Channel, event.Arguments[2])}
+				[]string{fmt.Sprintf("The topic for %v is %v.",
+					c.Channel, event.Arguments[2])}}
 		}
 	})
 
@@ -159,7 +159,7 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay, db *sql.DB) {
 	irchuu.AddCallback("331", func(event *irc.Event) {
 		if event.Arguments[1] == c.Channel {
 			r.IRCServiceCh <- relay.ServiceMessage{"announce",
-				"No topic is set."}
+				[]string{"No topic is set."}}
 		}
 	})
 
@@ -181,7 +181,7 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay, db *sql.DB) {
 				}
 			}
 			names = nil
-			r.IRCServiceCh <- relay.ServiceMessage{"announce", ops}
+			r.IRCServiceCh <- relay.ServiceMessage{"announce", []string{ops}}
 		}
 	})
 
@@ -278,16 +278,20 @@ func listenService(r *relay.Relay, c *config.Irc, irchuu *irc.Connection) {
 		case "announce":
 			fallthrough
 		case "bot":
-			irchuu.Privmsg(c.Channel, f.Arguments)
+			if len(f.Arguments) != 0 {
+				irchuu.Privmsg(c.Channel, f.Arguments[0])
+			}
 		case "kick":
-			if f.Arguments != irchuu.GetNick() {
-				irchuu.Kick(f.Arguments, c.Channel,
-					"relayed from Telegram")
+			if len(f.Arguments) == 2 && f.Arguments[0] != irchuu.GetNick() {
+				irchuu.Kick(f.Arguments[0], c.Channel,
+					"by "+f.Arguments[1])
 			}
 		case "ops":
 			irchuu.SendRawf("NAMES %v", c.Channel)
 		case "invite":
-			irchuu.SendRawf("INVITE %v %v", f.Arguments, c.Channel)
+			if len(f.Arguments) != 0 {
+				irchuu.SendRawf("INVITE %v %v", f.Arguments[0], c.Channel)
+			}
 		case "topic":
 			irchuu.SendRawf("TOPIC %v", c.Channel)
 		}
@@ -299,7 +303,7 @@ func listenService(r *relay.Relay, c *config.Irc, irchuu *irc.Connection) {
 }
 
 // formatIRCMessage translates universal messages into IRC.
-// TODO: find and colorize mentions
+// TODO: handle different media types, handle IRC's extras
 func formatIRCMessages(message relay.Message, c *config.Irc) []string {
 	nick := c.Prefix + formatNick(message, c) + c.Postfix
 	// 512 - 2 for CRLF - 7 for "PRIVMSG" - 4 for spaces - 9 just in case - 50 just in case
@@ -364,9 +368,9 @@ func processCmd(event *irc.Event, irchuu *irc.Connection, c *config.Irc, r *rela
 		}
 	case "kick":
 	case "ops":
-		r.IRCServiceCh <- relay.ServiceMessage{"ops", ""}
+		r.IRCServiceCh <- relay.ServiceMessage{"ops", nil}
 	case "count":
-		r.IRCServiceCh <- relay.ServiceMessage{"count", ""}
+		r.IRCServiceCh <- relay.ServiceMessage{"count", nil}
 	case "unban":
 	}
 }

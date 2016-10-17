@@ -45,5 +45,5 @@ type Message struct {
 // ServiceMessage represents a service message, which is not relayed.
 type ServiceMessage struct {
 	Command   string
-	Arguments string
+	Arguments []string
 }
