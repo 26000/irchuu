@@ -26,7 +26,15 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay, db *sql.DB) {
 	irchuu.UseTLS = c.SSL
 	irchuu.Password = c.ServerPassword
 
-	var names []string
+	// 0 — not on channel
+	// 1 — normal
+	// 2 — voice (+v, +)
+	// 3 — halfop (+h, %)
+	// 4 — op (+o, @)
+	// 5 — protected/admin (+a, &)
+	// 6 — owner (+q, ~)
+	names := make(map[string]int)
+	tempNames := make(map[string]int)
 
 	if c.SASL {
 		irchuu.UseSASL = true
@@ -140,10 +148,14 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay, db *sql.DB) {
 
 	// On joined...
 	irchuu.AddCallback("JOIN", func(event *irc.Event) {
-		logger.Printf("Joined %v\n", event.Arguments[0])
-		go relayMessagesToIRC(r, c, irchuu)
-		go listenService(r, c, irchuu)
-
+		if event.Nick == irchuu.GetNick() {
+			logger.Printf("Joined %v\n", event.Arguments[0])
+			go relayMessagesToIRC(r, c, irchuu)
+			go listenService(r, c, irchuu, &names)
+			go updateNames(irchuu, c)
+		} else {
+			names[event.Nick] = 1
+		}
 	})
 
 	// Topic
@@ -166,22 +178,30 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay, db *sql.DB) {
 	// Names
 	irchuu.AddCallback("353", func(event *irc.Event) {
 		if event.Arguments[2] == c.Channel {
-			names = append(names, strings.Split(event.Arguments[3],
-				" ")...)
+			for _, name := range strings.Split(event.Arguments[3], " ") {
+				switch name[0] {
+				case '+':
+					tempNames[name[1:]] = 2
+				case '%':
+					tempNames[name[1:]] = 3
+				case '@':
+					tempNames[name[1:]] = 4
+				case '&':
+					tempNames[name[1:]] = 5
+				case '~':
+					tempNames[name[1:]] = 6
+				default:
+					tempNames[name] = 1
+				}
+			}
 		}
 	})
 
 	// End of names
 	irchuu.AddCallback("366", func(event *irc.Event) {
 		if event.Arguments[1] == c.Channel {
-			ops := "Operators online: "
-			for _, name := range names {
-				if name[0] == '~' || name[0] == '&' || name[0] == '@' || name[0] == '%' {
-					ops += name + " "
-				}
-			}
-			names = nil
-			r.IRCServiceCh <- relay.ServiceMessage{"announce", []string{ops}}
+			names = tempNames
+			logger.Println("Finished updating names list.")
 		}
 	})
 
@@ -225,6 +245,27 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay, db *sql.DB) {
 			if db != nil {
 				go irchuubase.Log(f, db, logger)
 			}
+			names[event.Nick] = 0
+		}
+	})
+
+	irchuu.AddCallback("PART", func(event *irc.Event) {
+		if event.Arguments[0] == c.Channel {
+			names[event.Nick] = 0
+		}
+	})
+
+	irchuu.AddCallback("QUIT", func(event *irc.Event) {
+		if event.Arguments[0] == c.Channel {
+			names[event.Nick] = 0
+		}
+	})
+
+	irchuu.AddCallback("MODE", func(event *irc.Event) {
+		if event.Arguments[0] == c.Channel && len(event.Arguments) > 2 {
+			for k, o := range parseMode(event) {
+				names[k] = o
+			}
 		}
 	})
 
@@ -257,6 +298,83 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay, db *sql.DB) {
 	irchuu.Loop()
 }
 
+// parseMode parses the MODE event and returns users with their ranks
+// (map[string]int)
+func parseMode(event *irc.Event) map[string]int {
+	// 0 — not on channel
+	// 1 — normal
+	// 2 — voice (+v, +)
+	// 3 — halfop (+h, %)
+	// 4 — op (+o, @)
+	// 5 — protected/admin (+a, &)
+	// 6 — owner (+q, ~)
+	m := make(map[string]int)
+	var mode bool
+	n := 1
+	for _, l := range event.Arguments[1] {
+		switch l {
+		case '+':
+			mode = true
+		case '-':
+			mode = false
+		case 'v':
+			n++
+			if mode {
+				m[event.Arguments[n]] = 2
+			} else {
+				m[event.Arguments[n]] = 1
+			}
+		case 'h':
+			n++
+			if mode {
+				m[event.Arguments[n]] = 3
+			} else {
+				m[event.Arguments[n]] = 1
+			}
+		case 'o':
+			n++
+			if mode {
+				m[event.Arguments[n]] = 4
+			} else {
+				m[event.Arguments[n]] = 1
+			}
+		case 'a':
+			n++
+			if mode {
+				m[event.Arguments[n]] = 5
+			} else {
+				m[event.Arguments[n]] = 1
+			}
+		case 'q':
+			n++
+			if mode {
+				m[event.Arguments[n]] = 6
+			} else {
+				m[event.Arguments[n]] = 1
+			}
+		case 'I':
+			fallthrough
+		case 'e':
+			fallthrough
+		case 'b':
+			fallthrough
+		case 'k':
+			if mode {
+				n++
+			}
+		}
+	}
+	return m
+}
+
+// updateNames tries to update the name list occasionally.
+func updateNames(irchuu *irc.Connection, c *config.Irc) {
+	for {
+		time.Sleep(time.Second * time.Duration(c.NamesUpdateInterval))
+		irchuu.SendRawf("NAMES %v", c.Channel)
+	}
+}
+
 // relayMessagesToIRC listens to the Telegram channel and sends every message
 // into IRC.
 func relayMessagesToIRC(r *relay.Relay, c *config.Irc, irchuu *irc.Connection) {
@@ -272,7 +390,7 @@ func relayMessagesToIRC(r *relay.Relay, c *config.Irc, irchuu *irc.Connection) {
 }
 
 // listenService listens to service messages and executes them.
-func listenService(r *relay.Relay, c *config.Irc, irchuu *irc.Connection) {
+func listenService(r *relay.Relay, c *config.Irc, irchuu *irc.Connection, names *map[string]int) {
 	for f := range r.TeleServiceCh {
 		switch f.Command {
 		case "announce":
@@ -287,7 +405,13 @@ func listenService(r *relay.Relay, c *config.Irc, irchuu *irc.Connection) {
 					"by "+f.Arguments[1])
 			}
 		case "ops":
-			irchuu.SendRawf("NAMES %v", c.Channel)
+			ops := "Operators online: "
+			for name, rank := range *names {
+				if rank > 1 {
+					ops += name + " "
+				}
+			}
+			r.IRCServiceCh <- relay.ServiceMessage{"announce", []string{ops}}
 		case "invite":
 			if len(f.Arguments) != 0 {
 				irchuu.SendRawf("INVITE %v %v", f.Arguments[0], c.Channel)
@@ -314,7 +438,7 @@ func formatIRCMessages(message relay.Message, c *config.Irc) []string {
 	}
 
 	if message.Extra["forward"] != "" {
-		message.Text = fmt.Sprintf("[\x0311fwd\x0f from @%v] %v",
+		message.Text = fmt.Sprintf("[\x0310fwd\x0f from @%v] %v",
 			colorizeNick(message.Extra["forward"], c), message.Text)
 	} else if message.Extra["reply"] != "" && message.Extra["replyUserID"] != "" {
 		message.Text = fmt.Sprintf("@%v, %v",
@@ -333,31 +457,37 @@ func formatIRCMessages(message relay.Message, c *config.Irc) []string {
 }
 
 // processCmd executes commands.
+// TODO: Allow hist from PM?
 func processCmd(event *irc.Event, irchuu *irc.Connection, c *config.Irc, r *relay.Relay, db *sql.DB) {
 	cmd := strings.Split(event.Message()[len(c.CMDPrefix):], " ")
 	switch cmd[0] {
 	case "help":
-		irchuu.Privmsg(c.Channel, "Available commands:")
-		irchuu.Privmsgf(c.Channel, "%vhelp — show this help",
-			c.CMDPrefix)
+		texts := make([]string, 9)
+		texts[0] = "Available commands:"
+		texts[1] = c.CMDPrefix + "help — show this help"
+		texts[2] = c.CMDPrefix + "ops — show moderators in Telegram"
+		texts[3] = c.CMDPrefix + "count — show users count in Telegram"
+		texts[7] = "/ctcp " + irchuu.GetNick() +
+			" version — get version info"
+		texts[8] = "Some of these commands are available in PM."
 		if db != nil {
-			irchuu.Privmsgf(c.Channel,
-				"%vhist [n] — get [n] last messages in PM", c.CMDPrefix)
+			texts[4] = c.CMDPrefix +
+				"hist [n] — get [n] last messages in PM"
 			if c.Moderation {
-				irchuu.Privmsgf(c.Channel,
-					"%vkick [nick || full name] — kick a user in Telegram",
-					c.CMDPrefix)
-				irchuu.Privmsgf(c.Channel,
-					"%vunban [nick || full name] — unban a user in Telegram",
-					c.CMDPrefix)
+				texts[5] = c.CMDPrefix +
+					"kick [nick || full name] — kick a user in Telegram"
+				texts[6] = c.CMDPrefix +
+					"unban [nick || full name] — unban a user in Telegram"
 			}
 		}
-		irchuu.Privmsgf(c.Channel,
-			"%vops — show moderators in Telegram", c.CMDPrefix)
-		irchuu.Privmsgf(c.Channel,
-			"%vcount — show users count in Telegram", c.CMDPrefix)
-		irchuu.Privmsgf(c.Channel,
-			"/ctcp %v VERSION — get version info", irchuu.GetNick())
+		for _, text := range texts {
+			if text != "" {
+				irchuu.Privmsg(c.Channel, text)
+				if c.FloodDelay != 0 {
+					time.Sleep(time.Duration(c.FloodDelay) * time.Millisecond)
+				}
+			}
+		}
 	case "hist":
 		if db != nil {
 			var n int
@@ -367,12 +497,19 @@ func processCmd(event *irc.Event, irchuu *irc.Connection, c *config.Irc, r *rela
 			go sendHistory(db, event.Nick, irchuu, c, n)
 		}
 	case "kick":
+		if c.Moderation {
+			kickTG(db, irchuu, event)
+		}
 	case "ops":
 		r.IRCServiceCh <- relay.ServiceMessage{"ops", nil}
 	case "count":
 		r.IRCServiceCh <- relay.ServiceMessage{"count", nil}
 	case "unban":
 	}
+}
+
+// kickTG kicks a Telegram user from the groupchat.
+func kickTG(db *sql.DB, irchuu *irc.Connection, event *irc.Event) {
 }
 
 // sendHistory retrieves the message history from DB and sends it to <nick>.

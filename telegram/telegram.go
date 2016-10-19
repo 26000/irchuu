@@ -140,8 +140,12 @@ func processCmd(bot *tgbotapi.BotAPI, c *config.Telegram, message *tgbotapi.Mess
 				case "administrator":
 					fallthrough
 				case "creator":
-					f := relay.ServiceMessage{"kick", []string{arg, message.From.String()}}
-					r.TeleServiceCh <- f
+					if arg != "" {
+						f := relay.ServiceMessage{"kick",
+							[]string{arg,
+								message.From.String()}}
+						r.TeleServiceCh <- f
+					}
 				case "member":
 					m := tgbotapi.NewMessage(c.Group,
 						"Insufficient permission.")

@@ -87,6 +87,9 @@ moderation = true # allow ops in IRC to kick users from Telegram
                   # (bot needs to be a moderator in Telegram)
                   # works only when dbURI is set
 
+NamesUpdateInterval = 600 # (seconds) how often to poll the server for the
+                          # users list
+
 cmdprefix = ./
 maxhist = 40 # maximum number of messages sent on ./hist command in IRC
              # works only when dbURI is set
@@ -116,9 +119,10 @@ type Irc struct {
 	Ellipsis   string
 	FloodDelay int
 
-	Moderation bool
-	CMDPrefix  string
-	MaxHist    int
+	Moderation          bool
+	CMDPrefix           string
+	MaxHist             int
+	NamesUpdateInterval int
 
 	Debug bool
 }
