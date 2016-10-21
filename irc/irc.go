@@ -212,7 +212,7 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay, db *sql.DB) {
 			if db != nil {
 				go irchuubase.Log(f, db, logger)
 			}
-			if strings.HasPrefix(event.Message(), c.CMDPrefix) {
+			if strings.HasPrefix(event.Message(), c.Nick) {
 				processCmd(event, irchuu, c, r, db)
 			}
 		} else {
@@ -459,25 +459,28 @@ func formatIRCMessages(message relay.Message, c *config.Irc) []string {
 // processCmd executes commands.
 // TODO: Allow hist from PM?
 func processCmd(event *irc.Event, irchuu *irc.Connection, c *config.Irc, r *relay.Relay, db *sql.DB) {
-	cmd := strings.Split(event.Message()[len(c.CMDPrefix):], " ")
-	switch cmd[0] {
+	cmd := strings.Split(event.Message(), " ")
+	if len(cmd) < 2 {
+		return
+	}
+	switch cmd[1] {
 	case "help":
 		texts := make([]string, 9)
 		texts[0] = "Available commands:"
-		texts[1] = c.CMDPrefix + "help — show this help"
-		texts[2] = c.CMDPrefix + "ops — show moderators in Telegram"
-		texts[3] = c.CMDPrefix + "count — show users count in Telegram"
+		texts[1] = c.Nick + " help — show this help"
+		texts[2] = c.Nick + " ops — show moderators in Telegram"
+		texts[3] = c.Nick + " count — show users count in Telegram"
 		texts[7] = "/ctcp " + irchuu.GetNick() +
 			" version — get version info"
 		texts[8] = "Some of these commands are available in PM."
 		if db != nil {
-			texts[4] = c.CMDPrefix +
-				"hist [n] — get [n] last messages in PM"
+			texts[4] = c.Nick +
+				" hist [n] — get [n] last messages in PM"
 			if c.Moderation {
-				texts[5] = c.CMDPrefix +
-					"kick [nick || full name] — kick a user in Telegram"
-				texts[6] = c.CMDPrefix +
-					"unban [nick || full name] — unban a user in Telegram"
+				texts[5] = c.Nick +
+					" kick [nick || full name] — kick a user in Telegram"
+				texts[6] = c.Nick +
+					" unban [nick || full name] — unban a user in Telegram"
 			}
 		}
 		for _, text := range texts {
@@ -491,8 +494,8 @@ func processCmd(event *irc.Event, irchuu *irc.Connection, c *config.Irc, r *rela
 	case "hist":
 		if db != nil {
 			var n int
-			if len(cmd) > 1 && cmd[1] != "" {
-				n, _ = strconv.Atoi(cmd[1])
+			if len(cmd) > 2 && cmd[2] != "" {
+				n, _ = strconv.Atoi(cmd[2])
 			}
 			go sendHistory(db, event.Nick, irchuu, c, n)
 		}
