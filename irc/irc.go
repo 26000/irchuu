@@ -218,10 +218,14 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay, db *sql.DB) {
 		} else {
 			logger.Printf("Message from %v: %v\n",
 				event.Nick, event.Message())
-			irchuu.Privmsg(event.Nick,
-				"I work only on my channel."+
-					" https://github.com/26000/irchuu"+
-					" for more info.")
+			if names[event.Nick] != 0 {
+				processPMCmd(event, irchuu, c, r, db)
+			} else {
+				irchuu.Privmsg(event.Nick,
+					"I work only for my channel members."+
+						" https://github.com/26000/irchuu"+
+						" for more info.")
+			}
 		}
 	})
 
@@ -457,7 +461,6 @@ func formatIRCMessages(message relay.Message, c *config.Irc) []string {
 }
 
 // processCmd executes commands.
-// TODO: Allow hist from PM?
 func processCmd(event *irc.Event, irchuu *irc.Connection, c *config.Irc, r *relay.Relay, db *sql.DB) {
 	cmd := strings.Split(event.Message(), " ")
 	if len(cmd) < 2 {
@@ -467,20 +470,21 @@ func processCmd(event *irc.Event, irchuu *irc.Connection, c *config.Irc, r *rela
 	case "help":
 		texts := make([]string, 9)
 		texts[0] = "Available commands:"
-		texts[1] = c.Nick + " help — show this help"
-		texts[2] = c.Nick + " ops — show moderators in Telegram"
-		texts[3] = c.Nick + " count — show users count in Telegram"
-		texts[7] = "/ctcp " + irchuu.GetNick() +
-			" version — get version info"
+		texts[1] = c.Nick + " \x02help\x0f — show this help"
+		texts[2] = c.Nick + " \x02ops\x0f — show Telegram group ops"
+		texts[3] = c.Nick + " \x02count\x0f — show Telegram group user count"
+		texts[7] = "\x02/ctcp " + irchuu.GetNick() +
+			" version\x0f — get version"
 		texts[8] = "Some of these commands are available in PM."
 		if db != nil {
 			texts[4] = c.Nick +
-				" hist [n] — get [n] last messages in PM"
+				" \x02hist [n]\x0f — get [n] last messages in PM"
 			if c.Moderation {
 				texts[5] = c.Nick +
-					" kick [nick || full name] — kick a user in Telegram"
+					" \x02kick [nick || full name]\x0f —" +
+					" kick a user from the Telegram group"
 				texts[6] = c.Nick +
-					" unban [nick || full name] — unban a user in Telegram"
+					" \x02unban [nick || full name]\x0f — unban a user"
 			}
 		}
 		for _, text := range texts {
@@ -513,6 +517,45 @@ func processCmd(event *irc.Event, irchuu *irc.Connection, c *config.Irc, r *rela
 
 // kickTG kicks a Telegram user from the groupchat.
 func kickTG(db *sql.DB, irchuu *irc.Connection, event *irc.Event) {
+}
+
+// processPMCmd executes commands sent in private.
+func processPMCmd(event *irc.Event, irchuu *irc.Connection, c *config.Irc, r *relay.Relay, db *sql.DB) {
+	cmd := strings.Split(event.Message(), " ")
+	if len(cmd) < 1 {
+		return
+	}
+	switch cmd[0] {
+	case "help":
+		texts := make([]string, 5)
+		texts[0] = "Available commands:"
+		texts[1] = "\x02help\x0f — show this help"
+		texts[3] = "\x02/ctcp " + irchuu.GetNick() +
+			" version\x0f — get version info"
+		texts[4] = "More commands are available in the channel."
+		if db != nil {
+			texts[2] = "\x02hist [n]\x0f — get [n] last messages"
+		}
+		for _, text := range texts {
+			if text != "" {
+				irchuu.Privmsg(event.Nick, text)
+				if c.FloodDelay != 0 {
+					time.Sleep(time.Duration(c.FloodDelay) * time.Millisecond)
+				}
+			}
+		}
+	case "hist":
+		if db != nil {
+			var n int
+			if len(cmd) > 1 && cmd[1] != "" {
+				n, _ = strconv.Atoi(cmd[1])
+			}
+			go sendHistory(db, event.Nick, irchuu, c, n)
+		}
+	default:
+		irchuu.Privmsg(event.Nick, "No such command. Enter"+
+			" \x02help\x0f for the list of commands.")
+	}
 }
 
 // sendHistory retrieves the message history from DB and sends it to <nick>.
