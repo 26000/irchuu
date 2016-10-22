@@ -29,8 +29,8 @@ func Log(msg relay.Message, db *sql.DB, logger *log.Logger) {
 
 		rows2, err := db.Query("INSERT INTO"+
 			" tg_users(id, nick, first_name, last_name, last_active)"+
-			" VALUES($1, $2, $3, $4, $5) ON CONFLICT (id) DO UPDATE"+
-			" SET id = $1, nick = $2, first_name = $3,"+
+			" VALUES($1, NULLIF($2, ''), $3, $4, $5) ON CONFLICT (id) DO UPDATE"+
+			" SET id = $1, nick = NULLIF($2, ''), first_name = $3,"+
 			" last_name = $4, last_active = $5;",
 			msg.FromID, msg.Nick, msg.FirstName, msg.LastName, msg.Date)
 		defer rows2.Close()
@@ -121,8 +121,10 @@ func handleErrors(err error, logger *log.Logger) bool {
 	return true
 }
 
-func FindUser(name string, db *sql.DB) (id int, err error) {
-	err = db.QueryRow("SELECT id FROM tg_users WHERE nick LIKE $1 || '%'"+
-		" ORDER BY last_active DESC LIMIT 1", name).Scan(&id)
+func FindUser(name string, db *sql.DB) (id int, foundName string, err error) {
+	err = db.QueryRow("SELECT id, coalesce(nick, first_name || ' ' || last_name)"+
+		"  FROM tg_users WHERE nick LIKE $1 || '%'"+
+		" OR first_name || ' ' || last_name LIKE $1 || '%' "+
+		" ORDER BY last_active DESC LIMIT 1", name).Scan(&id, &foundName)
 	return
 }

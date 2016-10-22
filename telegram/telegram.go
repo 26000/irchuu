@@ -135,7 +135,31 @@ func listenService(r *relay.Relay, c *config.Telegram, bot *tgbotapi.BotAPI) {
 				r.TeleServiceCh <- relay.ServiceMessage{
 					"announce",
 					[]string{"Unable to kick: " +
-						err.Error()},
+						err.Error() + "."},
+				}
+			} else {
+				r.TeleServiceCh <- relay.ServiceMessage{
+					"action",
+					[]string{"kicked " + f.Arguments[1] + "."},
+				}
+			}
+		case "unban":
+			id, _ := strconv.Atoi(f.Arguments[0])
+			member := tgbotapi.ChatMemberConfig{
+				ChatID: c.Group,
+				UserID: id,
+			}
+			_, err := bot.UnbanChatMember(member)
+			if err != nil {
+				r.TeleServiceCh <- relay.ServiceMessage{
+					"announce",
+					[]string{"Unable to unban: " +
+						err.Error() + "."},
+				}
+			} else {
+				r.TeleServiceCh <- relay.ServiceMessage{
+					"action",
+					[]string{"unbanned " + f.Arguments[1] + "."},
 				}
 			}
 		}

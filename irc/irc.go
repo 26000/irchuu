@@ -403,6 +403,8 @@ func listenService(r *relay.Relay, c *config.Irc, irchuu *irc.Connection, names 
 			if len(f.Arguments) != 0 {
 				irchuu.Privmsg(c.Channel, f.Arguments[0])
 			}
+		case "action":
+			irchuu.Action(c.Channel, f.Arguments[0])
 		case "kick":
 			if len(f.Arguments) == 2 && f.Arguments[0] != irchuu.GetNick() {
 				irchuu.Kick(f.Arguments[0], c.Channel,
@@ -462,7 +464,7 @@ func formatIRCMessages(message relay.Message, c *config.Irc) []string {
 
 // processCmd executes commands.
 func processCmd(event *irc.Event, irchuu *irc.Connection, c *config.Irc, r *relay.Relay, db *sql.DB, names *map[string]int) {
-	cmd := strings.Split(event.Message(), " ")
+	cmd := strings.SplitN(event.Message(), " ", 3)
 	if len(cmd) < 2 {
 		return
 	}
@@ -506,7 +508,7 @@ func processCmd(event *irc.Event, irchuu *irc.Connection, c *config.Irc, r *rela
 	case "kick":
 		if c.Moderation && len(cmd) > 2 {
 			if (*names)[event.Nick] >= c.KickPermission {
-				kickTG(db, irchuu, r, cmd[2], c.Channel)
+				modifyUser(db, irchuu, r, cmd[2], c.Channel, false)
 			} else {
 				irchuu.Privmsg(c.Channel, "Insufficient permission.")
 			}
@@ -516,12 +518,20 @@ func processCmd(event *irc.Event, irchuu *irc.Connection, c *config.Irc, r *rela
 	case "count":
 		r.IRCServiceCh <- relay.ServiceMessage{"count", nil}
 	case "unban":
+		if c.Moderation && len(cmd) > 2 {
+			if (*names)[event.Nick] >= c.KickPermission {
+				modifyUser(db, irchuu, r, cmd[2], c.Channel, true)
+			} else {
+				irchuu.Privmsg(c.Channel, "Insufficient permission.")
+			}
+		}
 	}
 }
 
-// kickTG kicks a Telegram user from the groupchat.
-func kickTG(db *sql.DB, irchuu *irc.Connection, r *relay.Relay, name, channel string) {
-	id, err := irchuubase.FindUser(name, db)
+// modifyUser kicks a Telegram user from the groupchat or unbans them. Mode true
+// unbans, mode false kicks.
+func modifyUser(db *sql.DB, irchuu *irc.Connection, r *relay.Relay, name, channel string, mode bool) {
+	id, foundName, err := irchuubase.FindUser(name, db)
 	if err == sql.ErrNoRows {
 		irchuu.Privmsg(channel, "No such user.")
 		return
@@ -529,7 +539,11 @@ func kickTG(db *sql.DB, irchuu *irc.Connection, r *relay.Relay, name, channel st
 		irchuu.Privmsg(channel, "An error occurred.")
 		return
 	}
-	r.IRCServiceCh <- relay.ServiceMessage{"kick", []string{strconv.Itoa(id)}}
+	if mode {
+		r.IRCServiceCh <- relay.ServiceMessage{"unban", []string{strconv.Itoa(id), foundName}}
+	} else {
+		r.IRCServiceCh <- relay.ServiceMessage{"kick", []string{strconv.Itoa(id), foundName}}
+	}
 }
 
 // processPMCmd executes commands sent in private.
