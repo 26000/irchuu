@@ -12,6 +12,7 @@ import (
 	"log"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -78,6 +79,7 @@ func processChatMessage(bot *tgbotapi.BotAPI, c *config.Telegram, message *tgbot
 }
 
 // listenService listens to service messages and executes them.
+// TODO: restructure
 func listenService(r *relay.Relay, c *config.Telegram, bot *tgbotapi.BotAPI) {
 	for f := range r.IRCServiceCh {
 		switch f.Command {
@@ -120,6 +122,20 @@ func listenService(r *relay.Relay, c *config.Telegram, bot *tgbotapi.BotAPI) {
 						"Chat administrators: \x02%v"+
 							"\x0f",
 						opsStr)},
+				}
+			}
+		case "kick":
+			id, _ := strconv.Atoi(f.Arguments[0])
+			member := tgbotapi.ChatMemberConfig{
+				ChatID: c.Group,
+				UserID: id,
+			}
+			_, err := bot.KickChatMember(member)
+			if err != nil {
+				r.TeleServiceCh <- relay.ServiceMessage{
+					"announce",
+					[]string{"Unable to kick: " +
+						err.Error()},
 				}
 			}
 		}

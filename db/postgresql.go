@@ -120,3 +120,9 @@ func handleErrors(err error, logger *log.Logger) bool {
 	}
 	return true
 }
+
+func FindUser(name string, db *sql.DB) (id int, err error) {
+	err = db.QueryRow("SELECT id FROM tg_users WHERE nick LIKE $1 || '%'"+
+		" ORDER BY last_active DESC LIMIT 1", name).Scan(&id)
+	return
+}

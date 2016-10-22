@@ -87,6 +87,9 @@ moderation = true # allow ops in IRC to kick users from Telegram
                   # (bot needs to be a moderator in Telegram)
                   # works only when dbURI is set
 
+kickpermission = 4 # who can kick users from the Telegram group:
+                   # 1 — everybody, 2 — voices, 3 — halfops, 4 — ops, 5 — protected/admins, 6 — the owner
+
 NamesUpdateInterval = 600 # (seconds) how often to poll the server for the
                           # users list
 
@@ -119,6 +122,7 @@ type Irc struct {
 	FloodDelay int
 
 	Moderation          bool
+	KickPermission      int
 	MaxHist             int
 	NamesUpdateInterval int
 

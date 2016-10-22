@@ -213,7 +213,7 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay, db *sql.DB) {
 				go irchuubase.Log(f, db, logger)
 			}
 			if strings.HasPrefix(event.Message(), c.Nick) {
-				processCmd(event, irchuu, c, r, db)
+				processCmd(event, irchuu, c, r, db, &names)
 			}
 		} else {
 			logger.Printf("Message from %v: %v\n",
@@ -461,7 +461,7 @@ func formatIRCMessages(message relay.Message, c *config.Irc) []string {
 }
 
 // processCmd executes commands.
-func processCmd(event *irc.Event, irchuu *irc.Connection, c *config.Irc, r *relay.Relay, db *sql.DB) {
+func processCmd(event *irc.Event, irchuu *irc.Connection, c *config.Irc, r *relay.Relay, db *sql.DB, names *map[string]int) {
 	cmd := strings.Split(event.Message(), " ")
 	if len(cmd) < 2 {
 		return
@@ -504,8 +504,12 @@ func processCmd(event *irc.Event, irchuu *irc.Connection, c *config.Irc, r *rela
 			go sendHistory(db, event.Nick, irchuu, c, n)
 		}
 	case "kick":
-		if c.Moderation {
-			kickTG(db, irchuu, event)
+		if c.Moderation && len(cmd) > 2 {
+			if (*names)[event.Nick] >= c.KickPermission {
+				kickTG(db, irchuu, r, cmd[2], c.Channel)
+			} else {
+				irchuu.Privmsg(c.Channel, "Insufficient permission.")
+			}
 		}
 	case "ops":
 		r.IRCServiceCh <- relay.ServiceMessage{"ops", nil}
@@ -516,7 +520,16 @@ func processCmd(event *irc.Event, irchuu *irc.Connection, c *config.Irc, r *rela
 }
 
 // kickTG kicks a Telegram user from the groupchat.
-func kickTG(db *sql.DB, irchuu *irc.Connection, event *irc.Event) {
+func kickTG(db *sql.DB, irchuu *irc.Connection, r *relay.Relay, name, channel string) {
+	id, err := irchuubase.FindUser(name, db)
+	if err == sql.ErrNoRows {
+		irchuu.Privmsg(channel, "No such user.")
+		return
+	} else if err != nil {
+		irchuu.Privmsg(channel, "An error occurred.")
+		return
+	}
+	r.IRCServiceCh <- relay.ServiceMessage{"kick", []string{strconv.Itoa(id)}}
 }
 
 // processPMCmd executes commands sent in private.
