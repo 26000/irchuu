@@ -288,6 +288,23 @@ func formatTGMessage(message relay.Message, c *config.Telegram) tgbotapi.Message
 // (relay.Message).
 func formatMessage(message *tgbotapi.Message, id int, prefix string) relay.Message {
 	extra := make(map[string]string)
+
+	if message.PinnedMessage != nil {
+		// we save all pin info...
+		extra["pinDate"] = string(message.Date)
+		extra["pinUserID"] = string(message.From.ID)
+		extra["pin"] = message.From.String()
+		// ...and turn our message into the pinned message
+		// it will get processed as any other message, we know that it's
+		// a pin
+		id := message.MessageID
+		message = message.PinnedMessage
+		extra["pinID"] = string(message.MessageID)
+		// and anyway, message IDs must be unique
+		message.MessageID = id
+		extra["special"] = "true"
+	}
+
 	if message.Text == "" {
 		message.Text = message.Caption
 	} else {
@@ -312,6 +329,29 @@ func formatMessage(message *tgbotapi.Message, id int, prefix string) relay.Messa
 
 	if message.EditDate != 0 {
 		extra["edit"] = string(message.EditDate)
+	}
+
+	switch {
+	case message.Photo != nil:
+		photo := (*message.Photo)[len(*message.Photo)-1]
+		extra["media"] = "photo"
+		extra["mediaID"] = photo.FileID
+		extra["width"] = string(photo.Width)
+		extra["height"] = string(photo.Height)
+		extra["size"] = string(photo.FileSize)
+	case message.Document != nil:
+	case message.Sticker != nil:
+	case message.Audio != nil:
+	case message.Video != nil:
+	case message.Voice != nil:
+	case message.Contact != nil:
+	case message.Location != nil:
+	case message.Venue != nil:
+	case message.NewChatMember != nil:
+	case message.LeftChatMember != nil:
+	case message.NewChatTitle != "":
+	case message.NewChatPhoto != nil:
+	case message.DeleteChatPhoto != false:
 	}
 
 	return relay.Message{
@@ -363,12 +403,14 @@ func splitSurrogatePairs(messageText []rune) []rune {
 }
 
 // assembleSurrogatePairs reverts what splitSurrogatePairs has done.
+// BUG(owner): doesn't work with ":grin:" emoji, maybe some other patterns.
 func assembleSurrogatePairs(messageText []rune) []rune {
 	newMessageText := make([]rune, len(messageText))
 	copy(newMessageText, messageText)
 	offset := 0
+	l := len(messageText) - 1
 	for i := 0; i < len(messageText); i++ {
-		if utf16.IsSurrogate(messageText[i]) {
+		if utf16.IsSurrogate(messageText[i]) && i != l {
 			if !utf16.IsSurrogate(messageText[i+1]) {
 				i--
 			}

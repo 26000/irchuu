@@ -383,7 +383,12 @@ func updateNames(irchuu *irc.Connection, c *config.Irc) {
 // into IRC.
 func relayMessagesToIRC(r *relay.Relay, c *config.Irc, irchuu *irc.Connection) {
 	for message := range r.TeleCh {
-		messages := formatIRCMessages(message, c)
+		var messages []string
+		if message.Extra["special"] == "" {
+			messages = formatIRCMessages(message, c)
+		} else {
+			messages = formatSpecialIRCMessages(message, c)
+		}
 		for _, m := range messages {
 			irchuu.Privmsg(c.Channel, m)
 			if c.FloodDelay != 0 {
@@ -460,6 +465,25 @@ func formatIRCMessages(message relay.Message, c *config.Irc) []string {
 
 	messages := splitLines(message.Text, acceptibleLength, nick+" ")
 	return messages
+}
+
+// formatSpecialIRCMessage translates special universal messages (service
+// messages, e. g. pin, kick, etc) into IRC.
+func formatSpecialIRCMessages(message relay.Message, c *config.Irc) (messages []string) {
+	if message.Extra["pin"] != "" {
+		txt := []rune(message.Text)
+		var s int
+		// TODO: make configurable
+		if len(txt) > 20 {
+			s = 20
+		} else {
+			s = len(txt) - 1
+		}
+		messages = []string{fmt.Sprintf("%v pinned %v's message"+
+			" \"%v...\"", colorizeNick(message.Extra["pin"], c),
+			colorizeNick(message.From.String, c), txt[:s])}
+	}
+	return
 }
 
 // processCmd executes commands.

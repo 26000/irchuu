@@ -34,11 +34,7 @@ type Message struct {
 	LastName  string // Realname, Telegram only
 
 	// In IRC: CTCP (ACTION), kick, topic
-	// In Telegram: Media: Type, width x height, size and URL;
-	// Forward: forward (nick), forwardDate, forwardUserID
-	// Pin: pin (true)
-	// Edit: edit (date)
-	// Reply: reply (nick), replyId, replyUserID
+	// In Telegram: medias, replies, forwards, pins, edits, new/left members...
 	Extra map[string]string
 }
 
