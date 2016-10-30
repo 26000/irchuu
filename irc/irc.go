@@ -481,7 +481,7 @@ func formatSpecialIRCMessages(message relay.Message, c *config.Irc) (messages []
 		}
 		messages = []string{fmt.Sprintf("%v pinned %v's message"+
 			" \"%v...\"", colorizeNick(message.Extra["pin"], c),
-			colorizeNick(message.From.String, c), txt[:s])}
+			colorizeNick(message.Name(), c), string(txt[:s]))}
 	}
 	return
 }
@@ -667,17 +667,7 @@ func splitLines(text string, max int, prefix string) []string {
 
 // formatNick processes nicknames.
 func formatNick(message relay.Message, c *config.Irc) string {
-	var nick string
-	addAt := true
-
-	if message.Nick == "" {
-		name := message.FirstName
-		if message.LastName != "" {
-			name += " " + message.LastName
-		}
-		message.Nick = name
-		addAt = false
-	}
+	nick := message.Name()
 
 	if c.Colorize {
 		nick = colorizeNick(message.Nick, c)
@@ -686,12 +676,10 @@ func formatNick(message relay.Message, c *config.Irc) string {
 	}
 
 	if c.MaxLength != 0 && len(message.Nick) > c.MaxLength {
-		message.Nick = message.Nick[:c.MaxLength-1] + "…"
+		nick = nick[:c.MaxLength-1] + "…"
 	}
 
-	if addAt {
-		nick = "@" + nick
-	}
+	nick = "@" + nick
 	return nick
 }
 

@@ -43,3 +43,16 @@ type ServiceMessage struct {
 	Command   string
 	Arguments []string
 }
+
+// Name returns string representation of the sender.
+func (message *Message) Name() (nick string) {
+	if message.Nick == "" {
+		nick := message.FirstName
+		if message.LastName != "" {
+			nick += " " + message.LastName
+		}
+	} else {
+		nick = message.Nick
+	}
+	return
+}
