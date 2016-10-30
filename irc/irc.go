@@ -2,6 +2,7 @@
 package irchuu
 
 import (
+	"code.cloudfoundry.org/bytefmt"
 	"database/sql"
 	"fmt"
 	"github.com/26000/irchuu/config"
@@ -463,8 +464,51 @@ func formatIRCMessages(message relay.Message, c *config.Irc) []string {
 		message.Text = "\x034[edited]\x0f " + message.Text
 	}
 
+	if message.Extra["media"] != "" {
+		message.Text = formatMediaMessage(message, c)
+	}
+
 	messages := splitLines(message.Text, acceptibleLength, nick+" ")
 	return messages
+}
+
+// formatMediaMessage formats media messages.
+// TODO: implement as a method?
+// TODO: clean the code, reuse parts
+// TODO: colorize
+// TODO: urls
+func formatMediaMessage(message relay.Message, c *config.Irc) string {
+	text := message.Text
+	if text != "" {
+		text += " "
+	}
+	intSize, _ := strconv.ParseUint(message.Extra["size"], 10, 64)
+	size := bytefmt.ByteSize(intSize)
+	switch message.Extra["media"] {
+	case "sticker":
+		fallthrough
+	case "photo":
+		text += fmt.Sprintf("(%v, %v×%v, %viB)",
+			message.Extra["media"], message.Extra["width"],
+			message.Extra["height"], size)
+	case "document":
+		text += fmt.Sprintf("(\"%v\", %viB)", message.Extra["mediaName"],
+			size)
+	case "audio":
+		text += fmt.Sprintf("%v — %v (%vs, %viB)",
+			message.Extra["performer"], message.Extra["mediaName"],
+			message.Extra["duration"], size)
+	case "video":
+		text += fmt.Sprintf("(%v, %v×%v×%vs, %viB)",
+			message.Extra["media"], message.Extra["width"],
+			message.Extra["height"], message.Extra["duration"],
+			size)
+	case "voice":
+		text += fmt.Sprintf("(%v, %vs, %viB)",
+			message.Extra["media"], message.Extra["duration"],
+			size)
+	}
+	return text
 }
 
 // formatSpecialIRCMessage translates special universal messages (service

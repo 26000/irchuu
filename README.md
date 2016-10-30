@@ -33,3 +33,8 @@ A Telegram<->IRC transport.
 
 - [ ] WeeChat plugin
 - [ ] Unit tests
+
+- [ ] Automatic check for updates
+
+Bugs:
+- [ ] Find a better alternative to polling the server for names

@@ -286,6 +286,7 @@ func formatTGMessage(message relay.Message, c *config.Telegram) tgbotapi.Message
 
 // formatMessage maps the message onto the universal message struct
 // (relay.Message).
+// TODO: split into several funcs?
 func formatMessage(message *tgbotapi.Message, id int, prefix string) relay.Message {
 	extra := make(map[string]string)
 
@@ -336,39 +337,44 @@ func formatMessage(message *tgbotapi.Message, id int, prefix string) relay.Messa
 		photo := (*message.Photo)[len(*message.Photo)-1]
 		extra["media"] = "photo"
 		extra["mediaID"] = photo.FileID
-		extra["width"] = string(photo.Width)
-		extra["height"] = string(photo.Height)
-		extra["size"] = string(photo.FileSize)
+		extra["width"] = strconv.Itoa(photo.Width)
+		extra["height"] = strconv.Itoa(photo.Height)
+		extra["size"] = strconv.Itoa(photo.FileSize)
 	case message.Document != nil:
 		extra["media"] = "document"
 		extra["mediaID"] = message.Document.FileID
 		extra["mediaName"] = message.Document.FileName
 		extra["mime"] = message.Document.MimeType
-		extra["size"] = string(message.Document.FileSize)
+		extra["size"] = strconv.Itoa(message.Document.FileSize)
 	case message.Sticker != nil:
 		extra["media"] = "sticker"
 		extra["mediaID"] = message.Sticker.FileID
 		message.Text = message.Sticker.Emoji
-		extra["width"] = string(message.Sticker.Width)
-		extra["height"] = string(message.Sticker.Height)
-		extra["size"] = string(message.Sticker.FileSize)
+		extra["width"] = strconv.Itoa(message.Sticker.Width)
+		extra["height"] = strconv.Itoa(message.Sticker.Height)
+		extra["size"] = strconv.Itoa(message.Sticker.FileSize)
 	case message.Audio != nil:
 		extra["media"] = "audio"
 		extra["mediaID"] = message.Audio.FileID
 		extra["mediaName"] = message.Audio.Title
 		extra["performer"] = message.Audio.Performer
-		extra["duration"] = string(message.Audio.Duration)
+		extra["duration"] = strconv.Itoa(message.Audio.Duration)
 		extra["mime"] = message.Audio.MimeType
-		extra["size"] = string(message.Audio.FileSize)
+		extra["size"] = strconv.Itoa(message.Audio.FileSize)
 	case message.Video != nil:
 		extra["media"] = "video"
 		extra["mediaID"] = message.Video.FileID
-		extra["duration"] = string(message.Video.Duration)
+		extra["duration"] = strconv.Itoa(message.Video.Duration)
 		extra["mime"] = message.Video.MimeType
-		extra["width"] = string(message.Video.Width)
-		extra["height"] = string(message.Video.Height)
-		extra["size"] = string(message.Audio.FileSize)
+		extra["width"] = strconv.Itoa(message.Video.Width)
+		extra["height"] = strconv.Itoa(message.Video.Height)
+		extra["size"] = strconv.Itoa(message.Video.FileSize)
 	case message.Voice != nil:
+		extra["media"] = "voice"
+		extra["mediaID"] = message.Voice.FileID
+		extra["duration"] = strconv.Itoa(message.Voice.Duration)
+		extra["mime"] = message.Voice.MimeType
+		extra["size"] = strconv.Itoa(message.Voice.FileSize)
 	case message.Contact != nil:
 	case message.Location != nil:
 	case message.Venue != nil:
