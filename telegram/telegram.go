@@ -407,52 +407,9 @@ func getFullName(user *tgbotapi.User) string {
 	return name
 }
 
-// splitSurrogatePairs returns a string with all runes which could be encoded in
-// two two-bytes UTF-16 code units split into two.
-// It is needed bacause Telegram is stupid and gives entity offsets and lengths
-// in UTF-16 code units (NOT code points).
-func splitSurrogatePairs(messageText []rune) []rune {
-	newMessageText := make([]rune, len(messageText))
-	copy(newMessageText, messageText)
-	offset := 0
-	for i, v := range messageText {
-		if p1, p2 := utf16.EncodeRune(v); p1 != p2 {
-			newMessageText = append(newMessageText[:i+offset], p1)
-			newMessageText = append(newMessageText, p2)
-			newMessageText = append(newMessageText,
-				messageText[i+1:]...)
-			offset++
-		}
-	}
-	return newMessageText
-}
-
-// assembleSurrogatePairs reverts what splitSurrogatePairs has done.
-// BUG(owner): doesn't work with ":grin:" emoji, maybe some other patterns.
-func assembleSurrogatePairs(messageText []rune) []rune {
-	newMessageText := make([]rune, len(messageText))
-	copy(newMessageText, messageText)
-	offset := 0
-	l := len(messageText) - 1
-	for i := 0; i < len(messageText); i++ {
-		if utf16.IsSurrogate(messageText[i]) && i != l {
-			if !utf16.IsSurrogate(messageText[i+1]) {
-				i--
-			}
-			p := utf16.DecodeRune(messageText[i], messageText[i+1])
-			newMessageText = append(newMessageText[:i-offset], p)
-			newMessageText = append(newMessageText,
-				messageText[i+2:]...)
-			offset++
-		}
-		i++
-	}
-	return newMessageText
-}
-
 // translateMarkup turns Telegram's entities into IRC's codes.
 func translateMarkup(message tgbotapi.Message) string {
-	messageText := splitSurrogatePairs([]rune(message.Text))
+	messageText := utf16.Encode([]rune(message.Text))
 	if message.Entities != nil {
 		off := 0
 		for i := 0; i < len(*message.Entities); i++ {
@@ -460,29 +417,35 @@ func translateMarkup(message tgbotapi.Message) string {
 			e.Offset += off
 			switch e.Type {
 			case "italic":
-				messageText = surroundRunes(messageText,
-					e.Offset, e.Length, '\x1d',
-					'\x0f')
+				// \x1d, \x0f
+				messageText = surroundCodePoints(messageText,
+					e.Offset, e.Length, []uint16{29},
+					[]uint16{15})
 				off += 2
 			case "bold":
-				messageText = surroundRunes(messageText,
-					e.Offset, e.Length, '\x02',
-					'\x0f')
+				// \x02, \x0f
+				messageText = surroundCodePoints(messageText,
+					e.Offset, e.Length, []uint16{2},
+					[]uint16{15})
 				off += 2
 			case "text_link":
-				var newMessageText []rune
+				var newMessageText []uint16
+				url := utf16.Encode([]rune(e.URL))
 				newMessageText = append(newMessageText,
 					messageText[:e.Offset+e.Length]...)
 				newMessageText = append(newMessageText,
-					[]rune(" ("+e.URL+") ")...)
+					[]uint16{32, 40}...) // " ("
+				newMessageText = append(newMessageText, url...)
+				newMessageText = append(newMessageText,
+					[]uint16{41, 32}...) // ") "
 				newMessageText = append(newMessageText,
 					messageText[e.Offset+e.Length:]...)
-				off += 4 + len([]rune(e.URL))
+				off += 4 + len(url)
 				messageText = newMessageText
 			}
 		}
 	}
-	return string(assembleSurrogatePairs(messageText))
+	return string(utf16.Decode(messageText))
 }
 
 // reconstructMarkup translates IRC markup to HTML.
@@ -539,13 +502,13 @@ func reconstructMarkup(text string) string {
 	return newText
 }
 
-// surroundRunes adds two runes before a substring and after that substring.
-func surroundRunes(runes []rune, offset int, length int, rune1 rune, rune2 rune) []rune {
-	var newRunes []rune
-	newRunes = append(newRunes, runes[:offset]...)
-	newRunes = append(newRunes, rune1)
-	newRunes = append(newRunes, runes[offset:offset+length]...)
-	newRunes = append(newRunes, rune2)
-	newRunes = append(newRunes, runes[offset+length:]...)
-	return newRunes
+// surroundCodePoints surrounds part of a uint16 slice with two other slices.
+func surroundCodePoints(slice []uint16, offset int, length int, slice1 []uint16, slice2 []uint16) []uint16 {
+	var new []uint16
+	new = append(new, slice[:offset]...)
+	new = append(new, slice1...)
+	new = append(new, slice[offset:offset+length]...)
+	new = append(new, slice2...)
+	new = append(new, slice[offset+length:]...)
+	return new
 }
