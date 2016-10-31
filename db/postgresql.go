@@ -79,7 +79,8 @@ func Init(dbURI string) *sql.DB {
 func GetMessages(db *sql.DB, n int) ([]relay.Message, error) {
 	msgs := make([]relay.Message, 0, n)
 	rows, err := db.Query(`SELECT date, source, coalesce(messages.nick,
-tg_users.nick), text, msg_id, from_id, first_name, last_name, extra FROM messages
+tg_users.nick), text, coalesce(msg_id, 0), coalesce(from_id, 0),
+coalesce(first_name, ' '), coalesce(last_name, ' '), extra FROM messages
 LEFT JOIN tg_users
 ON tg_users.id = messages.from_id ORDER BY date DESC LIMIT $1;`, n)
 	defer rows.Close()
@@ -100,9 +101,15 @@ ON tg_users.id = messages.from_id ORDER BY date DESC LIMIT $1;`, n)
 			extras    []byte
 			extra     map[string]string
 		)
-		rows.Scan(&date, &source, &nick, &text, &ID, &fromID, &firstName,
+		err = rows.Scan(&date, &source, &nick, &text, &ID, &fromID, &firstName,
 			&lastName, &extras)
+		if err != nil {
+			log.Println(err)
+		}
 		err = json.Unmarshal(extras, &extra)
+		if err != nil {
+			log.Println(err)
+		}
 		msgs = append(msgs, relay.Message{date, source, nick, text, ID,
 			fromID, firstName, lastName, extra})
 	}
