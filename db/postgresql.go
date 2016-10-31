@@ -77,7 +77,7 @@ func Init(dbURI string) *sql.DB {
 
 // GetMessages gets n last messages and returns them in a slice of relay.Message.
 func GetMessages(db *sql.DB, n int) ([]relay.Message, error) {
-	msgs := make([]relay.Message, n)
+	msgs := make([]relay.Message, 0, n)
 	rows, err := db.Query(`SELECT date, source, coalesce(messages.nick,
 tg_users.nick), text, msg_id, from_id, first_name, last_name, extra FROM messages
 LEFT JOIN tg_users
@@ -87,7 +87,6 @@ ON tg_users.id = messages.from_id ORDER BY date DESC LIMIT $1;`, n)
 	if err != nil {
 		return msgs, err
 	}
-	i := 0
 	for rows.Next() {
 		var (
 			date      time.Time
@@ -104,9 +103,8 @@ ON tg_users.id = messages.from_id ORDER BY date DESC LIMIT $1;`, n)
 		rows.Scan(&date, &source, &nick, &text, &ID, &fromID, &firstName,
 			&lastName, &extras)
 		err = json.Unmarshal(extras, &extra)
-		msgs[i] = relay.Message{date, source, nick, text, ID,
-			fromID, firstName, lastName, extra}
-		i++
+		msgs = append(msgs, relay.Message{date, source, nick, text, ID,
+			fromID, firstName, lastName, extra})
 	}
 	return msgs, nil
 }

@@ -535,7 +535,7 @@ func formatSpecialIRCMessages(message relay.Message, c *config.Irc) (messages []
 			" \"%v...\".", colorizeNick(message.Extra["pin"], c),
 			colorizeNick(message.Name(), c), string(txt[:s]))}
 	case "newChatMember":
-		if message.FromID == 0 {
+		if strconv.Itoa(message.FromID) == message.Extra["memberID"] {
 			messages = []string{fmt.Sprintf("%v joined the group via invite link.",
 				colorizeNick(message.Extra["memberName"], c))}
 		} else {
@@ -544,7 +544,7 @@ func formatSpecialIRCMessages(message relay.Message, c *config.Irc) (messages []
 				colorizeNick(message.Name(), c))}
 		}
 	case "leftChatMember":
-		if message.FromID == 0 {
+		if strconv.Itoa(message.FromID) == message.Extra["memberID"] {
 			messages = []string{fmt.Sprintf("%v left the group.",
 				colorizeNick(message.Extra["memberName"], c))}
 		} else {
