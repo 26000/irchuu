@@ -15,7 +15,7 @@ A Telegram<->IRC transport.
 - [x] Preserve formatted text
 - [x] /me command support from IRC
 - [x] Replies, forwards support
-- [ ] Documents: serving them as links in IRC
+- [x] Documents: serving them as links in IRC
 - [ ] Pictures: serving and Imgur uploads
 - [x] Moderation of the Telegram group from IRC
 - [x] Moderation of the IRC channel from Telegram
@@ -33,8 +33,9 @@ A Telegram<->IRC transport.
 
 - [ ] WeeChat plugin
 - [ ] Unit tests
-
 - [ ] Automatic check for updates
+
+- [ ] PM support
 
 Bugs:
 - [ ] Find a better alternative to polling the server for names
