@@ -3,8 +3,8 @@ package irchuubase
 import (
 	"database/sql"
 	"encoding/json"
-	"github.com/lib/pq"
 	"github.com/26000/irchuu/relay"
+	"github.com/lib/pq"
 	"log"
 	"os"
 	"time"
@@ -103,7 +103,7 @@ ON tg_users.id = messages.from_id ORDER BY date DESC LIMIT $1;`, n)
 		)
 		rows.Scan(&date, &source, &nick, &text, &ID, &fromID, &firstName,
 			&lastName, &extras)
-		err = json.Unmarshal(extras, extra)
+		err = json.Unmarshal(extras, &extra)
 		msgs[i] = relay.Message{date, source, nick, text, ID,
 			fromID, firstName, lastName, extra}
 		i++

@@ -250,7 +250,7 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay, db *sql.DB) {
 			if db != nil {
 				go irchuubase.Log(f, db, logger)
 			}
-			names[event.Nick] = 0
+			names[event.Arguments[1]] = 0
 		}
 	})
 
@@ -386,7 +386,7 @@ func relayMessagesToIRC(r *relay.Relay, c *config.Irc, irchuu *irc.Connection) {
 	for message := range r.TeleCh {
 		var messages []string
 		if message.Extra["special"] == "" {
-			messages = formatIRCMessages(message, c)
+			messages = formatIRCMessages(message, c, 0)
 		} else {
 			messages = formatSpecialIRCMessages(message, c)
 		}
@@ -440,10 +440,16 @@ func listenService(r *relay.Relay, c *config.Irc, irchuu *irc.Connection, names 
 
 // formatIRCMessage translates universal messages into IRC.
 // TODO: handle different media types, handle IRC's extras
-func formatIRCMessages(message relay.Message, c *config.Irc) []string {
-	nick := c.Prefix + formatNick(message, c) + c.Postfix
+func formatIRCMessages(message relay.Message, c *config.Irc, prefixLen int) []string {
+	var nick string
+
+	if !message.Source {
+		nick = c.Prefix + colorizeNick(message.Nick, c) + c.Postfix
+	} else {
+		nick = c.Prefix + formatNick(message, c) + c.Postfix
+	}
 	// 512 - 2 for CRLF - 7 for "PRIVMSG" - 4 for spaces - 9 just in case - 50 just in case
-	acceptibleLength := 440 - len(nick) - len(c.Channel)
+	acceptibleLength := 440 - len(nick) - len(c.Channel) - prefixLen
 
 	if c.Ellipsis != "" {
 		message.Text = strings.Replace(message.Text, "\n", c.Ellipsis, -1)
@@ -476,7 +482,6 @@ func formatIRCMessages(message relay.Message, c *config.Irc) []string {
 // TODO: implement as a method?
 // TODO: clean the code, reuse parts
 // TODO: colorize
-// TODO: urls
 func formatMediaMessage(message relay.Message, c *config.Irc) string {
 	text := message.Text
 	if text != "" {
@@ -517,7 +522,8 @@ func formatMediaMessage(message relay.Message, c *config.Irc) string {
 // formatSpecialIRCMessage translates special universal messages (service
 // messages, e. g. pin, kick, etc) into IRC.
 func formatSpecialIRCMessages(message relay.Message, c *config.Irc) (messages []string) {
-	if message.Extra["pin"] != "" {
+	switch message.Extra["special"] {
+	case "pin":
 		txt := []rune(message.Text)
 		var s int
 		// TODO: make configurable
@@ -527,8 +533,45 @@ func formatSpecialIRCMessages(message relay.Message, c *config.Irc) (messages []
 			s = len(txt) - 1
 		}
 		messages = []string{fmt.Sprintf("%v pinned %v's message"+
-			" \"%v...\"", colorizeNick(message.Extra["pin"], c),
+			" \"%v...\".", colorizeNick(message.Extra["pin"], c),
 			colorizeNick(message.Name(), c), string(txt[:s]))}
+	case "newChatMember":
+		if message.FromID == 0 {
+			messages = []string{fmt.Sprintf("%v joined the group via invite link.",
+				colorizeNick(message.Extra["memberName"], c))}
+		} else {
+			messages = []string{fmt.Sprintf("%v was added by %v.",
+				colorizeNick(message.Extra["memberName"], c),
+				colorizeNick(message.Name(), c))}
+		}
+	case "leftChatMember":
+		if message.FromID == 0 {
+			messages = []string{fmt.Sprintf("%v left the group.",
+				colorizeNick(message.Extra["memberName"], c))}
+		} else {
+			messages = []string{fmt.Sprintf("%v was removed by %v.",
+				colorizeNick(message.Extra["memberName"], c),
+				colorizeNick(message.Name(), c))}
+		}
+	case "newChatTitle":
+		messages = []string{fmt.Sprintf("Chat renamed to \"%v\" by %v.",
+			message.Extra["title"], colorizeNick(message.Name(), c))}
+	case "newChatPhoto":
+		messages = []string{fmt.Sprintf("The chat photo has been changed by %v.",
+			colorizeNick(message.Name(), c))}
+	case "deleteChatPhoto":
+		messages = []string{fmt.Sprintf("The chat photo has been deleted by %v.",
+			colorizeNick(message.Name(), c))}
+	case "KICK":
+		messages = []string{fmt.Sprintf("%v was kicked by %v.",
+			colorizeNick(message.Text, c),
+			colorizeNick(message.Nick, c))}
+	case "TOPIC":
+		messages = []string{fmt.Sprintf("%v set the topic to \"%v\".",
+			colorizeNick(message.Nick, c), message.Text)}
+	case "ACTION":
+		messages = []string{fmt.Sprintf("*%v %v*",
+			colorizeNick(message.Nick, c), message.Text)}
 	}
 	return
 }
@@ -671,14 +714,15 @@ func sendHistory(db *sql.DB, nick string, irchuu *irc.Connection, c *config.Irc,
 	l := len(msgs) - 1
 	for m := range msgs {
 		msg := msgs[l-m]
-		msg.Text = "[\x0310" + msg.Date.Format("15:04:05") + "\x0f] " + msg.Text
-		if !msg.Source {
-			msg.FirstName = msg.Nick
-			msg.Nick = ""
+		date := "[\x0310" + msg.Date.Format("15:04:05") + "\x0f] "
+		var rawMsgs []string
+		if msg.Extra["special"] == "" {
+			rawMsgs = formatIRCMessages(msg, c, 14)
+		} else {
+			rawMsgs = formatSpecialIRCMessages(msg, c)
 		}
-		rawMsgs := formatIRCMessages(msg, c)
 		for rawMsg := range rawMsgs {
-			irchuu.Privmsg(nick, rawMsgs[rawMsg])
+			irchuu.Privmsg(nick, date+rawMsgs[rawMsg])
 			if c.FloodDelay != 0 {
 				time.Sleep(time.Duration(c.FloodDelay) * time.Millisecond)
 			}
@@ -738,10 +782,13 @@ func formatMessage(nick string, text string, action string) relay.Message {
 	case "":
 	case "ACTION":
 		extra["CTCP"] = "ACTION"
+		extra["special"] = "ACTION"
 	case "KICK":
 		extra["KICK"] = "true"
+		extra["special"] = "KICK"
 	case "TOPIC":
 		extra["TOPIC"] = "true"
+		extra["special"] = "TOPIC"
 	}
 
 	return relay.Message{

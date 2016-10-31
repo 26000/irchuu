@@ -305,18 +305,18 @@ func formatMessage(message *tgbotapi.Message, id int, prefix string) relay.Messa
 
 	if message.PinnedMessage != nil {
 		// we save all pin info...
-		extra["pinDate"] = string(message.Date)
-		extra["pinUserID"] = string(message.From.ID)
+		extra["pinDate"] = strconv.Itoa(message.Date)
+		extra["pinUserID"] = strconv.Itoa(message.From.ID)
 		extra["pin"] = message.From.String()
 		// ...and turn our message into the pinned message
 		// it will get processed as any other message, we know that it's
 		// a pin
 		id := message.MessageID
 		message = message.PinnedMessage
-		extra["pinID"] = string(message.MessageID)
+		extra["pinID"] = strconv.Itoa(message.MessageID)
 		// and anyway, message IDs must be unique
 		message.MessageID = id
-		extra["special"] = "true"
+		extra["special"] = "pin"
 	}
 
 	if message.Text == "" {
@@ -328,21 +328,21 @@ func formatMessage(message *tgbotapi.Message, id int, prefix string) relay.Messa
 	if message.ReplyToMessage != nil && message.ReplyToMessage.From.ID == id && message.ReplyToMessage.Entities != nil && len(*message.ReplyToMessage.Entities) > 0 && strings.HasPrefix(message.ReplyToMessage.Text, html.UnescapeString(prefix)) {
 		extra["reply"] = getEntity(message.ReplyToMessage.Text,
 			(*message.ReplyToMessage.Entities)[0])
-		extra["replyID"] = string(message.ReplyToMessage.MessageID)
+		extra["replyID"] = strconv.Itoa(message.ReplyToMessage.MessageID)
 	} else if message.ReplyToMessage != nil {
 		extra["reply"] = message.ReplyToMessage.From.String()
-		extra["replyID"] = string(message.ReplyToMessage.MessageID)
-		extra["replyUserID"] = string(message.ReplyToMessage.From.ID)
+		extra["replyID"] = strconv.Itoa(message.ReplyToMessage.MessageID)
+		extra["replyUserID"] = strconv.Itoa(message.ReplyToMessage.From.ID)
 	}
 
 	if message.ForwardFrom != nil {
 		extra["forward"] = message.ForwardFrom.String()
-		extra["forwardUserID"] = string(message.ForwardFrom.ID)
-		extra["forwardDate"] = string(message.ForwardDate)
+		extra["forwardUserID"] = strconv.Itoa(message.ForwardFrom.ID)
+		extra["forwardDate"] = strconv.Itoa(message.ForwardDate)
 	}
 
 	if message.EditDate != 0 {
-		extra["edit"] = string(message.EditDate)
+		extra["edit"] = strconv.Itoa(message.EditDate)
 	}
 
 	switch {
@@ -389,13 +389,24 @@ func formatMessage(message *tgbotapi.Message, id int, prefix string) relay.Messa
 		extra["mime"] = message.Voice.MimeType
 		extra["size"] = strconv.Itoa(message.Voice.FileSize)
 	case message.Contact != nil:
+		// TODO
 	case message.Location != nil:
 	case message.Venue != nil:
 	case message.NewChatMember != nil:
+		extra["special"] = "newChatMember"
+		extra["memberID"] = strconv.Itoa(message.NewChatMember.ID)
+		extra["memberName"] = message.NewChatMember.String()
 	case message.LeftChatMember != nil:
+		extra["special"] = "leftChatMember"
+		extra["memberID"] = strconv.Itoa(message.LeftChatMember.ID)
+		extra["memberName"] = message.LeftChatMember.String()
 	case message.NewChatTitle != "":
+		extra["special"] = "newChatTitle"
+		extra["title"] = message.NewChatTitle
 	case message.NewChatPhoto != nil:
+		extra["special"] = "newChatPhoto"
 	case message.DeleteChatPhoto != false:
+		extra["special"] = "deleteChatPhoto"
 	}
 
 	return relay.Message{
