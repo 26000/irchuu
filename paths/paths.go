@@ -43,8 +43,7 @@ func MakePaths(configFile string, dataDir string) error {
 		return err
 	}
 
-	_, err = os.Stat(configFile)
-	if err != nil {
+	if !Exists(configFile) {
 		err = config.PopulateConfig(configFile)
 		if err == nil {
 			log.Printf("New configuration file was populated. Edit %v and run `irchuu` again!\n", configFile)
@@ -56,16 +55,20 @@ func MakePaths(configFile string, dataDir string) error {
 	return nil
 }
 
-// CreateDir creates the directory if it doesn't exist.
+// CreateDir creates directory if it doesn't exist.
 func CreateDir(dir string, mode os.FileMode) error {
-	_, err := os.Stat(dir)
-	if err != nil {
-		err = os.MkdirAll(dir, mode)
-		if err != nil {
+	if !Exists(dir) {
+		if err := os.MkdirAll(dir, mode); err != nil {
 			return err
 		} else {
 			log.Printf("Created directory: %v\n", dir)
 		}
 	}
 	return nil
+}
+
+// Exists returns true if the file exists.
+func Exists(file string) bool {
+	_, err := os.Stat(file)
+	return err == nil
 }

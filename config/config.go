@@ -58,6 +58,16 @@ allowinvites = false # allow invites to the IRC channel from Telegram
 moderation = true # allow moderators in Telegram to kick users from IRC
                   # (bot needs to have permissions for that in IRC)
 
+downloadmedia = false # downloads media to $XDG_DATA_HOME/irchuu or 
+                      # ~/.local/share/irchuu/
+servemedia = false # serve mediafiles over HTTP and append links to the messages
+                   # requires downloadmedia to be true
+readtimeout = 100 # (seconds)
+writetimeout = 20 # (seconds)
+serverport = 8080 # port for media server
+baseurl = http://localhost:8080 # usually your protocol plus IP or domain plus the port
+                                # WITHOUT THE TRAILING SLASH
+
 [irc]
 server = irc.rizon.net
 port = 6667
@@ -142,4 +152,12 @@ type Telegram struct {
 	AllowBots    bool
 	AllowInvites bool
 	Moderation   bool
+
+	DownloadMedia bool
+	ServeMedia    bool
+	ServerPort    uint16
+	ReadTimeout   int
+	WriteTimeout  int
+	BaseURL       string
+	DataDir       string
 }

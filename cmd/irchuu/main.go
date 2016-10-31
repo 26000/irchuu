@@ -8,6 +8,7 @@ import (
 	"github.com/26000/irchuu/irc"
 	"github.com/26000/irchuu/paths"
 	"github.com/26000/irchuu/relay"
+	"github.com/26000/irchuu/server"
 	"github.com/26000/irchuu/telegram"
 	"log"
 	"os"
@@ -36,6 +37,12 @@ func main() {
 
 	if dbURI != "" {
 		db = irchuubase.Init(dbURI)
+	}
+
+	tg.DataDir = dataDir
+
+	if tg.ServeMedia {
+		go mediaserver.Serve(tg)
 	}
 
 	var wg sync.WaitGroup

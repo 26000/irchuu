@@ -6,11 +6,15 @@ import (
 	"fmt"
 	"github.com/26000/irchuu/config"
 	"github.com/26000/irchuu/db"
+	"github.com/26000/irchuu/paths"
 	"github.com/26000/irchuu/relay"
 	"gopkg.in/telegram-bot-api.v4"
 	"html"
+	"io"
 	"log"
+	"net/http"
 	"os"
+	"path"
 	"regexp"
 	"strconv"
 	"strings"
@@ -68,6 +72,15 @@ func processChatMessage(bot *tgbotapi.BotAPI, c *config.Telegram, message *tgbot
 	}
 	if c.TTL == 0 || c.TTL > (time.Now().Unix()-int64(message.Date)) {
 		f := formatMessage(message, bot.Self.ID, c.Prefix)
+		if c.DownloadMedia && f.Extra["mediaID"] != "" {
+			url, err := download(bot, f.Extra["mediaID"], c)
+			if err != nil {
+				logger.Printf("Could not download media %v: %v\n",
+					f.Extra["mediaID"], err)
+			} else {
+				f.Extra["url"] = url
+			}
+		}
 		r.TeleCh <- f
 		if db != nil {
 			go irchuubase.Log(f, db, logger)
@@ -397,6 +410,55 @@ func formatMessage(message *tgbotapi.Message, id int, prefix string) relay.Messa
 		LastName:  message.From.LastName,
 		Extra:     extra,
 	}
+}
+
+// download gets the media link from Telegram and downloads its contents.
+func download(bot *tgbotapi.BotAPI, id string, c *config.Telegram) (url string, err error) {
+	file, err := bot.GetFileDirectURL(id)
+	if err != nil {
+		return
+	}
+	fileStrings := strings.Split(file, "/")
+	localUrl := path.Join(c.DataDir, id, fileStrings[len(fileStrings)-1])
+	if paths.Exists(localUrl) {
+		url = c.BaseURL + "/" + id + "/" + fileStrings[len(fileStrings)-1]
+		return
+	}
+	downloadable, err := http.Get(file)
+	defer downloadable.Body.Close()
+	if err != nil {
+		return
+	}
+	dir := path.Join(c.DataDir, id)
+	if !paths.Exists(dir) {
+		if err := os.MkdirAll(dir, os.FileMode(0755)); err != nil {
+			return "", err
+		}
+	}
+
+	if err != nil {
+		return
+	}
+	res, err := os.Create(localUrl)
+	if err != nil {
+		return
+	}
+	defer res.Close()
+	buf := make([]byte, 1024)
+	for {
+		n, werr := downloadable.Body.Read(buf)
+		if werr != nil && werr != io.EOF {
+			return "", werr
+		}
+		if n == 0 {
+			break
+		}
+		if _, err := res.Write(buf[:n]); err != nil {
+			return "", err
+		}
+	}
+	url = c.BaseURL + "/" + id + "/" + fileStrings[len(fileStrings)-1]
+	return
 }
 
 // getEntity returns the text of an entity.
