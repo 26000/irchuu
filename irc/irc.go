@@ -439,7 +439,6 @@ func listenService(r *relay.Relay, c *config.Irc, irchuu *irc.Connection, names 
 }
 
 // formatIRCMessage translates universal messages into IRC.
-// TODO: handle different media types, handle IRC's extras
 func formatIRCMessages(message relay.Message, c *config.Irc, prefixLen int) []string {
 	var nick string
 

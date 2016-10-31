@@ -389,9 +389,31 @@ func formatMessage(message *tgbotapi.Message, id int, prefix string) relay.Messa
 		extra["mime"] = message.Voice.MimeType
 		extra["size"] = strconv.Itoa(message.Voice.FileSize)
 	case message.Contact != nil:
-		// TODO
+		// TODO: do something with it
+		extra["contactID"] = strconv.Itoa(message.Contact.UserID)
+		message.Text += fmt.Sprintf("contact: %v %v (%v)",
+			message.Contact.FirstName,
+			message.Contact.LastName,
+			message.Contact.PhoneNumber)
 	case message.Location != nil:
+		// TODO: same as above
+		extra["lat"] = strconv.FormatFloat(message.Location.Latitude, 'f',
+			-1, 64)
+		extra["lng"] = strconv.FormatFloat(message.Location.Longitude, 'f',
+			-1, 64)
+		message.Text += fmt.Sprintf("location: https://www.google.com/maps/@%v,%v,14z",
+			extra["lat"], extra["lng"])
 	case message.Venue != nil:
+		// TODO: same as above
+		extra["lat"] = strconv.FormatFloat(message.Venue.Location.Latitude, 'f',
+			-1, 64)
+		extra["lng"] = strconv.FormatFloat(message.Venue.Location.Longitude, 'f',
+			-1, 64)
+		extra["venue"] = message.Venue.Title
+		extra["address"] = message.Venue.Address
+		extra["foursquare"] = message.Venue.FoursquareID
+		message.Text += fmt.Sprintf("location \"%v\": https://www.google.com/maps/@%v,%v,14z",
+			extra["venue"], extra["lat"], extra["lng"])
 	case message.NewChatMember != nil:
 		extra["special"] = "newChatMember"
 		extra["memberID"] = strconv.Itoa(message.NewChatMember.ID)
