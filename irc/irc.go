@@ -813,6 +813,9 @@ func djb2(nick string) int {
 
 // colorizeNick adds color codes to the nickname.
 func colorizeNick(s string, c *config.Irc) string {
+	if !c.Colorize {
+		return s
+	}
 	i := djb2(s) % len(c.Palette)
 	if i < 0 {
 		i += len(c.Palette)
