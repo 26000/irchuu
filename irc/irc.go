@@ -180,6 +180,9 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay, db *sql.DB) {
 	irchuu.AddCallback("353", func(event *irc.Event) {
 		if event.Arguments[2] == c.Channel {
 			for _, name := range strings.Split(event.Arguments[3], " ") {
+				if len(name) == 0 {
+					continue
+				}
 				switch name[0] {
 				case '+':
 					tempNames[name[1:]] = 2
