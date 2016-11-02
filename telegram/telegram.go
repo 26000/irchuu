@@ -278,18 +278,23 @@ func formatTGMessage(message relay.Message, c *config.Telegram) tgbotapi.Message
 	message.Text = html.EscapeString(message.Text)
 	message.Text = reconstructMarkup(message.Text)
 	var m tgbotapi.MessageConfig
-	if message.Extra["TOPIC"] != "" {
+	switch message.Extra["special"] {
+	case "TOPIC":
 		m = tgbotapi.NewMessage(c.Group,
-			fmt.Sprintf("<b>%v</b> has set a new topic: %v",
+			fmt.Sprintf("<b>%v</b> has set a new topic: %v.",
 				message.Nick, message.Text))
-	} else if message.Extra["KICK"] != "" {
+	case "KICK":
 		m = tgbotapi.NewMessage(c.Group,
-			fmt.Sprintf("<b>%v</b> has kicked <b>%v</b>",
+			fmt.Sprintf("<b>%v</b> has kicked <b>%v</b>.",
 				message.Nick, message.Text))
-	} else if message.Extra["CTCP"] == "ACTION" {
+	case "NICK":
+		m = tgbotapi.NewMessage(c.Group,
+			fmt.Sprintf("<b>%v</b> is now known as <b>%v</b>.",
+				message.Nick, message.Text))
+	case "ACTION":
 		m = tgbotapi.NewMessage(c.Group, fmt.Sprintf("*<b>%v</b> %v*",
 			message.Nick, message.Text))
-	} else {
+	default:
 		m = tgbotapi.NewMessage(c.Group, fmt.Sprintf("%s<b>%v</b>%s %v",
 			c.Prefix, message.Nick, c.Postfix, message.Text))
 	}

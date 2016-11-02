@@ -257,6 +257,16 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay, db *sql.DB) {
 		}
 	})
 
+	irchuu.AddCallback("NICK", func(event *irc.Event) {
+		f := formatMessage(event.Nick, event.Arguments[0], "NICK")
+		r.IRCh <- f
+		if db != nil {
+			go irchuubase.Log(f, db, logger)
+		}
+		names[event.Arguments[0]] = names[event.Nick]
+		names[event.Nick] = 0
+	})
+
 	irchuu.AddCallback("PART", func(event *irc.Event) {
 		if event.Arguments[0] == c.Channel {
 			names[event.Nick] = 0
@@ -568,6 +578,10 @@ func formatSpecialIRCMessages(message relay.Message, c *config.Irc) (messages []
 		messages = []string{fmt.Sprintf("%v was kicked by %v.",
 			colorizeNick(message.Text, c),
 			colorizeNick(message.Nick, c))}
+	case "NICK":
+		messages = []string{fmt.Sprintf("%v is now known as %v.",
+			colorizeNick(message.Text, c),
+			colorizeNick(message.Nick, c))}
 	case "TOPIC":
 		messages = []string{fmt.Sprintf("%v set the topic to \"%v\".",
 			colorizeNick(message.Nick, c), message.Text)}
@@ -779,19 +793,7 @@ func formatNick(message relay.Message, c *config.Irc) string {
 // formatMessage creates a Message in the universal format of an IRC message.
 func formatMessage(nick string, text string, action string) relay.Message {
 	extra := make(map[string]string)
-
-	switch action {
-	case "":
-	case "ACTION":
-		extra["CTCP"] = "ACTION"
-		extra["special"] = "ACTION"
-	case "KICK":
-		extra["KICK"] = "true"
-		extra["special"] = "KICK"
-	case "TOPIC":
-		extra["TOPIC"] = "true"
-		extra["special"] = "TOPIC"
-	}
+	extra["special"] = action
 
 	return relay.Message{
 		Date:   time.Now(),
