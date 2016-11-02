@@ -33,7 +33,7 @@ A Telegram<->IRC transport.
 
 - [ ] WeeChat plugin
 - [ ] Unit tests
-- [ ] Automatic check for updates
+- [x] Automatically check for updates
 - [ ] Reorganize code, split some files into several
 
 - [ ] PM support

@@ -7,33 +7,34 @@ import (
 	"os"
 )
 
-const VERSION = "0.2.6"
+const (
+	VERSION = "0.2.6"
+	LAYER   = 2
+)
 
 // ReadConfig reads the configuration file.
-func ReadConfig(path string) (error, *Irc, *Telegram, string) {
+func ReadConfig(path string) (error, *Irc, *Telegram, *Irchuu) {
 	cfg, err := ini.InsensitiveLoad(path)
 	cfg.BlockMode = false
-	tg, irc := new(Telegram), new(Irc)
+	tg, irc, irchuu := new(Telegram), new(Irc), new(Irchuu)
 	err = cfg.Section("telegram").MapTo(tg)
 	if err != nil {
-		return err, irc, tg, ""
+		return err, irc, tg, irchuu
 	}
 	err = cfg.Section("irc").MapTo(irc)
 	if err != nil {
-		return err, irc, tg, ""
+		return err, irc, tg, irchuu
 	}
 
 	tg.Prefix = html.EscapeString(tg.Prefix)
 	tg.Postfix = html.EscapeString(tg.Postfix)
 
-	dbURIKey, err := cfg.Section("irchuu").GetKey("dburi")
+	err = cfg.Section("irchuu").MapTo(irchuu)
 	if err != nil {
-		return err, irc, tg, ""
+		return err, irc, tg, irchuu
 	}
 
-	dbURI := dbURIKey.String()
-
-	return nil, irc, tg, dbURI
+	return nil, irc, tg, irchuu
 }
 
 // PopulateConfig copies the sample config to <path>.
@@ -42,6 +43,12 @@ func PopulateConfig(file string) error {
 [irchuu]
 dburi = # URI of your PostgreSQL database
         # if blank, logging and kicking Telegram users from IRC will be unavailable
+sendstats = true # send usage statistics
+                 # data what you will share:
+                 # - the hashes of your Telegram group id and IRC channel
+		 # - your IRChuu version
+                 # - your IP
+checkupdates = true # check for updates on each start
 
 [telegram]
 token = myToken
@@ -109,6 +116,13 @@ maxhist = 40 # maximum number of messages sent on ./hist command in IRC
 	return ioutil.WriteFile(file, []byte(config), os.FileMode(0600))
 }
 
+// Irchuu is the struct of common part in config.
+type Irchuu struct {
+	DBURI        string
+	SendStats    bool
+	CheckUpdates bool
+}
+
 // Irc is the stuct of IRC part in config.
 type Irc struct {
 	Server         string
@@ -161,3 +175,5 @@ type Telegram struct {
 	BaseURL       string
 	DataDir       string
 }
+
+// muDeiPt5mAI8Ue==

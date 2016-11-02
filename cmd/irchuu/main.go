@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/26000/irchuu/config"
 	"github.com/26000/irchuu/db"
+	"github.com/26000/irchuu/hq"
 	"github.com/26000/irchuu/irc"
 	"github.com/26000/irchuu/paths"
 	"github.com/26000/irchuu/relay"
@@ -26,7 +27,7 @@ func main() {
 
 	log.Printf("Using configuration file: %v\n", configFile)
 	log.Printf("Using data directory: %v\n", dataDir)
-	err, irc, tg, dbURI := config.ReadConfig(configFile)
+	err, irc, tg, irchuuConf := config.ReadConfig(configFile)
 	if err != nil {
 		log.Fatalf("Unable to parse the config: %v\n", err)
 	}
@@ -35,8 +36,8 @@ func main() {
 
 	var db *sql.DB
 
-	if dbURI != "" {
-		db = irchuubase.Init(dbURI)
+	if irchuuConf.DBURI != "" {
+		db = irchuubase.Init(irchuuConf.DBURI)
 	}
 
 	tg.DataDir = dataDir
@@ -44,6 +45,8 @@ func main() {
 	if tg.ServeMedia {
 		go mediaserver.Serve(tg)
 	}
+
+	hq.Report(irchuuConf, tg, irc)
 
 	var wg sync.WaitGroup
 	wg.Add(2)
