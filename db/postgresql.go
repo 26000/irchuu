@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"github.com/26000/irchuu/relay"
-	"github.com/lib/pq"
+	_ "github.com/lib/pq"
 	"log"
 	"os"
 	"time"
@@ -59,19 +59,19 @@ func Init(dbURI string) *sql.DB {
 		" (id INT PRIMARY KEY NOT NULL, nick VARCHAR(32)," +
 		" first_name TEXT, last_name TEXT, last_active TIMESTAMP" +
 		" WITH TIME ZONE);")
-	defer rows1.Close()
 	if !handleErrors(err, logger) {
 		return nil
 	}
+	defer rows1.Close()
 	rows2, err := db.Query("CREATE TABLE IF NOT EXISTS messages" +
 		" (id BIGSERIAL, date TIMESTAMP WITH TIME ZONE NOT NULL," +
 		" source BOOLEAN, nick TEXT, \"text\" TEXT, from_id INT," +
 		" msg_id INT, extra JSONB);")
-	defer rows2.Close()
 	if !handleErrors(err, logger) {
 		return nil
 	}
-	log.Println("Successfully initialized DB")
+	defer rows2.Close()
+	logger.Println("Successfully initialized")
 	return db
 }
 
@@ -119,8 +119,8 @@ ON tg_users.id = messages.from_id ORDER BY date DESC LIMIT $1;`, n)
 // handleErrors logs the error and returns false if it is not nil. Otherwise
 // returns true.
 func handleErrors(err error, logger *log.Logger) bool {
-	if err, ok := err.(*pq.Error); ok {
-		logger.Printf("Database error: %v\n %v\n", err.Code.Name(), err)
+	if err != nil {
+		logger.Printf("Error: %v\n", err)
 		return false
 	}
 	return true
