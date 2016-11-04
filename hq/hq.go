@@ -13,7 +13,7 @@ import (
 
 const URI = "https://kotobank.ch/irchuu/z"
 
-// Checks for a new version sending data if enabled.
+// Report checks for a new version sending data if enabled.
 func Report(irchuu *config.Irchuu, tg *config.Telegram, irc *config.Irc) {
 	if irchuu.CheckUpdates || irchuu.SendStats {
 		var data url.Values
@@ -49,7 +49,7 @@ func Report(irchuu *config.Irchuu, tg *config.Telegram, irc *config.Irc) {
 	}
 }
 
-// Generates data to be sent on server.
+// captureData generates data to be sent on server.
 func captureData(tg *config.Telegram, irc *config.Irc) url.Values {
 	tgHash := sha256.Sum256([]byte(strconv.FormatInt(tg.Group, 10)))
 	ircHash := sha256.Sum256([]byte(irc.Channel))
