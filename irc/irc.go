@@ -776,14 +776,12 @@ func splitLines(text string, max int, prefix string) []string {
 func formatNick(message relay.Message, c *config.Irc) string {
 	nick := message.Name()
 
-	if c.Colorize {
-		nick = colorizeNick(message.Nick, c)
-	} else {
-		nick = message.Nick
+	if c.MaxLength != 0 && len(nick) > c.MaxLength {
+		nick = nick[:c.MaxLength-1] + "…"
 	}
 
-	if c.MaxLength != 0 && len(message.Nick) > c.MaxLength {
-		nick = nick[:c.MaxLength-1] + "…"
+	if c.Colorize {
+		nick = colorizeNick(nick, c)
 	}
 
 	nick = "@" + nick
