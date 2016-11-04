@@ -19,10 +19,35 @@ var (
 
 			Extra: map[string]string{},
 		},
+		&Message{
+			Date:   centralTime,
+			Source: true,
+			Nick:   "",
+			Text:   "konnichiha!",
+
+			ID:        42,
+			FromID:    26,
+			FirstName: "IRChuu~",
+			LastName:  "Bot",
+
+			Extra: map[string]string{},
+		},
 	}
 )
 
 func TestMessage_Name(t *testing.T) {
 	assert := assert.New(t)
-	assert.Equal(testMessages[0].Name(), "irchuu")
+	assert.Equal("irchuu", testMessages[0].Name())
+	assert.Equal("IRChuu~ Bot", testMessages[1].Name())
+}
+
+func TestNewRelay(t *testing.T) {
+	assert := assert.New(t)
+	r := NewRelay()
+	m := make(chan Message)
+	s := make(chan ServiceMessage)
+	assert.IsType(m, r.TeleCh)
+	assert.IsType(m, r.IRCh)
+	assert.IsType(s, r.TeleServiceCh)
+	assert.IsType(s, r.IRCServiceCh)
 }
