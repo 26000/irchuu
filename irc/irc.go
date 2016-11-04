@@ -805,10 +805,10 @@ func formatMessage(nick string, text string, action string) relay.Message {
 }
 
 // djb2 hashes the string and returns an integer.
-func djb2(nick string) int {
-	hash := 5381
+func djb2(nick string) int32 {
+	hash := int32(5381)
 	for s := 0; s < len(nick); s++ {
-		hash = ((hash << 5) + hash) + int(nick[s])
+		hash = ((hash << 5) + hash) + int32(nick[s])
 	}
 	return hash
 }
@@ -818,9 +818,9 @@ func colorizeNick(s string, c *config.Irc) string {
 	if !c.Colorize {
 		return s
 	}
-	i := djb2(s) % len(c.Palette)
+	i := djb2(s) % int32(len(c.Palette))
 	if i < 0 {
-		i += len(c.Palette)
+		i += int32(len(c.Palette))
 	}
 	return "\x03" + c.Palette[i] + s + "\x03"
 }
