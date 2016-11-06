@@ -16,7 +16,7 @@ A Telegram<->IRC transport.
 - [x] /me command support from IRC
 - [x] Replies, forwards support
 - [x] Documents: serving them as links in IRC
-- [ ] Pictures: serving and Imgur uploads
+- [x] Pictures: serving and Imgur uploads (not tested)
 - [x] Moderation of the Telegram group from IRC
 - [x] Moderation of the IRC channel from Telegram
 - [x] Invitations to IRC from Telegram
