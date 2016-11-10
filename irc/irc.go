@@ -139,13 +139,15 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay, db *sql.DB) {
 		r.IRCServiceCh <- s
 	})
 
-	irchuu.AddCallback("401", func(event *irc.Event) {
-		s := relay.ServiceMessage{"announce",
-			[]string{fmt.Sprintf("No such nick: %v.", event.Arguments[1])}}
+	/*
+		irchuu.AddCallback("401", func(event *irc.Event) {
+			s := relay.ServiceMessage{"announce",
+				[]string{fmt.Sprintf("No such nick: %v.", event.Arguments[1])}}
 
-		r.IRCServiceCh <- s
-		r.TeleServiceCh <- s
-	})
+			r.IRCServiceCh <- s
+			r.TeleServiceCh <- s
+		})
+	*/
 
 	// On joined...
 	irchuu.AddCallback("JOIN", func(event *irc.Event) {
