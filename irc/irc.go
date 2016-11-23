@@ -538,6 +538,10 @@ func formatMediaMessage(message relay.Message, c *config.Irc) string {
 func formatSpecialIRCMessages(message relay.Message, c *config.Irc) (messages []string) {
 	switch message.Extra["special"] {
 	case "pin":
+		if message.Extra["media"] != "" {
+			message.Text = formatMediaMessage(message, c)
+		}
+
 		txt := []rune(message.Text)
 		var s int
 		// TODO: make configurable
