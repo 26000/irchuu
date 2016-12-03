@@ -13,17 +13,17 @@ const (
 )
 
 // ReadConfig reads the configuration file.
-func ReadConfig(path string) (error, *Irc, *Telegram, *Irchuu) {
+func ReadConfig(path string) (error, *Irc, *Telegram, *Irchuu,*Imgur) {
 	cfg, err := ini.InsensitiveLoad(path)
 	cfg.BlockMode = false
-	tg, irc, irchuu := new(Telegram), new(Irc), new(Irchuu)
+	tg, irc, irchuu,imgur := new(Telegram), new(Irc), new(Irchuu), new(Imgur)
 	err = cfg.Section("telegram").MapTo(tg)
 	if err != nil {
-		return err, irc, tg, irchuu
+		return err, irc, tg, irchuu,imgur
 	}
 	err = cfg.Section("irc").MapTo(irc)
 	if err != nil {
-		return err, irc, tg, irchuu
+		return err, irc, tg, irchuu,imgur
 	}
 
 	tg.Prefix = html.EscapeString(tg.Prefix)
@@ -31,10 +31,14 @@ func ReadConfig(path string) (error, *Irc, *Telegram, *Irchuu) {
 
 	err = cfg.Section("irchuu").MapTo(irchuu)
 	if err != nil {
-		return err, irc, tg, irchuu
+		return err, irc, tg, irchuu,imgur
+	}
+	err = cfg.Section("imgur").MapTo(imgur)
+	if err != nil {
+		return err, irc, tg, irchuu,imgur
 	}
 
-	return nil, irc, tg, irchuu
+	return nil, irc, tg, irchuu,imgur
 }
 
 // PopulateConfig copies the sample config to <path>.
@@ -112,6 +116,8 @@ NamesUpdateInterval = 600 # (seconds) how often to poll the server for the
 
 maxhist = 40 # maximum number of messages sent on ./hist command in IRC
              # works only when dbURI is set
+[imgur]
+clientid = #You client id from imgur
 `
 	return ioutil.WriteFile(file, []byte(config), os.FileMode(0600))
 }
@@ -176,4 +182,7 @@ type Telegram struct {
 	DataDir       string
 }
 
+type Imgur struct{
+	ClientID string
+}
 // muDeiPt5mAI8Ue==
