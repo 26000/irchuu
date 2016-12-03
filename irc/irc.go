@@ -22,6 +22,8 @@ import (
 func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay, db *sql.DB) {
 	defer wg.Done()
 
+	startTime := time.Now()
+
 	logger := log.New(os.Stdout, "IRC ", log.LstdFlags)
 	irchuu := irc.IRC(c.Nick, "IRChuu~")
 	irchuu.UseTLS = c.SSL
@@ -54,7 +56,20 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay, db *sql.DB) {
 	})
 
 	irchuu.AddCallback("CTCP", func(event *irc.Event) {
-		logger.Printf("Unknown CTCP %v from %v\n", event.Arguments[1],
+		if event.Arguments[1] == "UPTIME" {
+			irchuu.SendRawf("NOTICE %s :\x01UPTIME %s\x01", event.Nick,
+				time.Since(startTime))
+			logger.Printf("CTCP %v from %v\n", event.Arguments[1],
+				event.Nick)
+		} else {
+			logger.Printf("Unknown CTCP %v from %v\n", event.Arguments[1],
+				event.Nick)
+		}
+	})
+
+	irchuu.RemoveCallback("CTCP_CLIENTINFO", 0)
+	irchuu.AddCallback("CTCP_CLIENTINFO", func(event *irc.Event) {
+		irchuu.SendRawf("NOTICE %s :\x01CLIENTINFO PING VERSION TIME UPTIME USERINFO CLIENTINFO\x01",
 			event.Nick)
 	})
 
