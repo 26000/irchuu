@@ -25,7 +25,7 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay, db *sql.DB) {
 	startTime := time.Now()
 
 	logger := log.New(os.Stdout, "IRC ", log.LstdFlags)
-	irchuu := irc.IRC(c.Nick, "IRChuu~")
+	irchuu := irc.IRC(c.Nick, "IRChuu")
 	irchuu.UseTLS = c.SSL
 	irchuu.Password = c.ServerPassword
 
@@ -242,7 +242,7 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay, db *sql.DB) {
 			if names[event.Nick] != 0 {
 				processPMCmd(event, irchuu, c, r, db)
 			} else {
-				irchuu.Privmsg(event.Nick,
+				noticeOrMsg(irchuu, c.SendNotices, event.Nick,
 					"I work only for my channel members."+
 						" https://github.com/26000/irchuu"+
 						" for more info.")
@@ -331,6 +331,24 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay, db *sql.DB) {
 	}
 
 	irchuu.Loop()
+}
+
+// noticeOrMsg sends NOTICE if the second arg is true or PRIVMSG else.
+func noticeOrMsg(irc *irc.Connection, notice bool, target, message string) {
+	if notice {
+		irc.Notice(target, message)
+	} else {
+		irc.Privmsg(target, message)
+	}
+}
+
+// noticeOrMsgf sends formatted NOTICE or PRIVMSG.
+func noticeOrMsgf(irc *irc.Connection, notice bool, target, format string, a ...interface{}) {
+	if notice {
+		irc.Noticef(target, format, a...)
+	} else {
+		irc.Privmsgf(target, format, a...)
+	}
 }
 
 // parseMode parses the MODE event and returns users with their ranks
@@ -716,7 +734,7 @@ func processPMCmd(event *irc.Event, irchuu *irc.Connection, c *config.Irc, r *re
 		}
 		for _, text := range texts {
 			if text != "" {
-				irchuu.Privmsg(event.Nick, text)
+				noticeOrMsg(irchuu, c.SendNotices, event.Nick, text)
 				if c.FloodDelay != 0 {
 					time.Sleep(time.Duration(c.FloodDelay) * time.Millisecond)
 				}
@@ -731,7 +749,7 @@ func processPMCmd(event *irc.Event, irchuu *irc.Connection, c *config.Irc, r *re
 			go sendHistory(db, event.Nick, irchuu, c, n)
 		}
 	default:
-		irchuu.Privmsg(event.Nick, "No such command. Enter"+
+		noticeOrMsg(irchuu, c.SendNotices, event.Nick, "No such command. Enter"+
 			" \x02help\x0f for the list of commands.")
 	}
 }
@@ -759,7 +777,7 @@ func sendHistory(db *sql.DB, nick string, irchuu *irc.Connection, c *config.Irc,
 			rawMsgs = formatSpecialIRCMessages(msg, c)
 		}
 		for rawMsg := range rawMsgs {
-			irchuu.Privmsg(nick, date+rawMsgs[rawMsg])
+			noticeOrMsg(irchuu, c.SendNotices, nick, date+rawMsgs[rawMsg])
 			if c.FloodDelay != 0 {
 				time.Sleep(time.Duration(c.FloodDelay) * time.Millisecond)
 			}

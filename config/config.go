@@ -112,6 +112,9 @@ NamesUpdateInterval = 600 # (seconds) how often to poll the server for the
 
 maxhist = 40 # maximum number of messages sent on ./hist command in IRC
              # works only when dbURI is set
+
+sendnotices = true # will send NOTICEs for private messages (help, hist,
+                   # user count, etc) instead of PRIVMSGs
 `
 	return ioutil.WriteFile(file, []byte(config), os.FileMode(0600))
 }
@@ -149,6 +152,7 @@ type Irc struct {
 	KickPermission      int
 	MaxHist             int
 	NamesUpdateInterval int
+	SendNotices         bool
 
 	Debug bool
 }
