@@ -115,6 +115,13 @@ maxhist = 40 # maximum number of messages sent on ./hist command in IRC
 
 sendnotices = true # will send NOTICEs for private messages (help, hist,
                    # user count, etc) instead of PRIVMSGs
+
+relayjoinsparts = true # forward joins and parts to Telegram
+relaymodes = true # forward MODE messages to Telegram
+
+kickrejoin = true # rejoin automatically when kicked
+
+announcetopic = true # announce the current topic to Telegram on join
 `
 	return ioutil.WriteFile(file, []byte(config), os.FileMode(0600))
 }
@@ -153,6 +160,10 @@ type Irc struct {
 	MaxHist             int
 	NamesUpdateInterval int
 	SendNotices         bool
+	RelayJoinsParts     bool
+	RelayModes          bool
+	KickRejoin          bool
+	AnnounceTopic       bool
 
 	Debug bool
 }

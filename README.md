@@ -9,7 +9,7 @@ A Telegram<->IRC transport.
 - [x] NickServ login for IRC
 - [x] SASL login for IRC
 
-- [x] Relaying IRC messages to Telegram
+- [x] Relaying IRC messages and notices to Telegram
 - [x] Relaying Telegram messages to IRC
 - [x] Coloured nicknames
 - [x] Preserve formatted text
@@ -20,6 +20,7 @@ A Telegram<->IRC transport.
 - [x] Moderation of the Telegram group from IRC
 - [x] Moderation of the IRC channel from Telegram
 - [x] Invitations to IRC from Telegram
+- [x] Relaying IRC joins, parts, kicks and mode changes (configurable)
 
 - [x] Logging to a DB
 - [x] Showing history in IRC on query
@@ -30,6 +31,8 @@ A Telegram<->IRC transport.
 - [x] Edits support
 - [x] Breaking long Telegram messages into several IRC messages
 - [x] Auto-reconnecting if internet lost
+- [x] Autorejoin when kicked from IRC
+- [x] Pause the message queue when kicked
 
 - [ ] WeeChat plugin
 - [ ] Unit tests
@@ -37,6 +40,3 @@ A Telegram<->IRC transport.
 - [ ] Reorganize code, split some files into several
 
 - [ ] PM support
-
-Bugs:
-- [ ] Find a better alternative to polling the server for names

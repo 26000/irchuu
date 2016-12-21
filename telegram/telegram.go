@@ -281,7 +281,7 @@ func formatTGMessage(message relay.Message, c *config.Telegram) tgbotapi.Message
 	switch message.Extra["special"] {
 	case "TOPIC":
 		m = tgbotapi.NewMessage(c.Group,
-			fmt.Sprintf("<b>%v</b> has set a new topic: %v.",
+			fmt.Sprintf("<b>%v</b> has set a new topic: <b>%v</b>.",
 				message.Nick, message.Text))
 	case "KICK":
 		m = tgbotapi.NewMessage(c.Group,
@@ -294,6 +294,36 @@ func formatTGMessage(message relay.Message, c *config.Telegram) tgbotapi.Message
 	case "ACTION":
 		m = tgbotapi.NewMessage(c.Group, fmt.Sprintf("*<b>%v</b> %v*",
 			message.Nick, message.Text))
+	case "MODE":
+		m = tgbotapi.NewMessage(c.Group, fmt.Sprintf("<b>%v</b> has set mode <b>%v</b>.",
+			message.Nick, message.Text))
+	case "PART":
+		var text string
+		if message.Text == "" {
+			text = fmt.Sprintf("<b>%v</b> has left.",
+				message.Nick)
+		} else {
+			text = fmt.Sprintf("<b>%v</b> has left: <b>%v</b>.",
+				message.Nick, message.Text)
+		}
+		m = tgbotapi.NewMessage(c.Group, text)
+	case "QUIT":
+		var text string
+		if message.Text == "" {
+			text = fmt.Sprintf("<b>%v</b> has quit.",
+				message.Nick)
+		} else {
+			text = fmt.Sprintf("<b>%v</b> has quit: <b>%v</b>.",
+				message.Nick, message.Text)
+		}
+		m = tgbotapi.NewMessage(c.Group, text)
+	case "JOIN":
+		m = tgbotapi.NewMessage(c.Group,
+			fmt.Sprintf("<b>%v</b> has joined.",
+				message.Nick))
+	case "NOTICE":
+		m = tgbotapi.NewMessage(c.Group, fmt.Sprintf("(notice) %s<b>%v</b>%s %v",
+			c.Prefix, message.Nick, c.Postfix, message.Text))
 	default:
 		m = tgbotapi.NewMessage(c.Group, fmt.Sprintf("%s<b>%v</b>%s %v",
 			c.Prefix, message.Nick, c.Postfix, message.Text))

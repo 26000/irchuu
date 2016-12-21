@@ -38,6 +38,7 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay, db *sql.DB) {
 	// 6 — owner (+q, ~)
 	names := make(map[string]int)
 	tempNames := make(map[string]int)
+	nameQueryStarted := false
 
 	if c.SASL {
 		irchuu.UseSASL = true
@@ -74,8 +75,20 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay, db *sql.DB) {
 	})
 
 	irchuu.AddCallback("NOTICE", func(event *irc.Event) {
-		logger.Printf("Notice from %v: %v\n",
-			event.Nick, event.Message())
+		if event.Arguments[0] == c.Channel {
+			f := formatMessage(event.Nick, event.Message(), "NOTICE")
+			r.IRCh <- f
+			if db != nil {
+				go irchuubase.Log(f, db, logger)
+			}
+			if strings.HasPrefix(event.Message(), c.Nick) {
+				processCmd(event, irchuu, c, r, db, &names)
+			}
+		} else {
+			logger.Printf("Notice from %v: %v\n",
+				event.Nick, event.Message())
+			// No auto-replies for notices (as defined in RFC)
+		}
 	})
 
 	// SASL Authentication status
@@ -168,30 +181,46 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay, db *sql.DB) {
 	irchuu.AddCallback("JOIN", func(event *irc.Event) {
 		if event.Nick == irchuu.GetNick() {
 			logger.Printf("Joined %v\n", event.Arguments[0])
-			go relayMessagesToIRC(r, c, irchuu)
-			go listenService(r, c, irchuu, &names)
-			go updateNames(irchuu, c)
+			if event.Arguments[0] == c.Channel {
+				go relayMessagesToIRC(r, c, irchuu)
+				go listenService(r, c, irchuu, &names)
+				if !nameQueryStarted {
+					go updateNames(irchuu, c)
+					nameQueryStarted = true
+				}
+			}
 		} else {
-			names[event.Nick] = 1
+			if event.Arguments[0] == c.Channel {
+				f := formatMessage(event.Nick, "", "JOIN")
+				if c.RelayJoinsParts {
+					r.IRCh <- f
+				}
+				if db != nil {
+					go irchuubase.Log(f, db, logger)
+				}
+				names[event.Nick] = 1
+			}
 		}
 	})
 
-	// Topic
-	irchuu.AddCallback("332", func(event *irc.Event) {
-		if event.Arguments[1] == c.Channel {
-			r.IRCServiceCh <- relay.ServiceMessage{"announce",
-				[]string{fmt.Sprintf("The topic for %v is %v.",
-					c.Channel, event.Arguments[2])}}
-		}
-	})
+	if c.AnnounceTopic {
+		// Topic
+		irchuu.AddCallback("332", func(event *irc.Event) {
+			if event.Arguments[1] == c.Channel {
+				r.IRCServiceCh <- relay.ServiceMessage{"announce",
+					[]string{fmt.Sprintf("The topic for %v is %v.",
+						c.Channel, event.Arguments[2])}}
+			}
+		})
 
-	// No topic
-	irchuu.AddCallback("331", func(event *irc.Event) {
-		if event.Arguments[1] == c.Channel {
-			r.IRCServiceCh <- relay.ServiceMessage{"announce",
-				[]string{"No topic is set."}}
-		}
-	})
+		// No topic
+		irchuu.AddCallback("331", func(event *irc.Event) {
+			if event.Arguments[1] == c.Channel {
+				r.IRCServiceCh <- relay.ServiceMessage{"announce",
+					[]string{"No topic is set."}}
+			}
+		})
+	}
 
 	// Names
 	irchuu.AddCallback("353", func(event *irc.Event) {
@@ -266,11 +295,20 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay, db *sql.DB) {
 	irchuu.AddCallback("KICK", func(event *irc.Event) {
 		if event.Arguments[0] == c.Channel {
 			f := formatMessage(event.Nick, event.Arguments[1], "KICK")
-			r.IRCh <- f
+			r.IRCh <- f // TODO: kick reasons are not saved
 			if db != nil {
 				go irchuubase.Log(f, db, logger)
 			}
 			names[event.Arguments[1]] = 0
+			if event.Arguments[1] == irchuu.GetNick() {
+				stopMsg := relay.Message{Extra: map[string]string{"break": "true"}}
+				stopCmd := relay.ServiceMessage{Command: "break"}
+				r.TeleCh <- stopMsg
+				r.TeleServiceCh <- stopCmd
+				if c.KickRejoin {
+					irchuu.Join(fmt.Sprintf("%v %v", c.Channel, c.ChanPassword))
+				}
+			}
 		}
 	})
 
@@ -286,20 +324,49 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay, db *sql.DB) {
 
 	irchuu.AddCallback("PART", func(event *irc.Event) {
 		if event.Arguments[0] == c.Channel {
+			var reason string
+			if len(event.Arguments) > 1 {
+				reason = event.Arguments[1]
+			}
+			f := formatMessage(event.Nick, reason, "PART")
+			if c.RelayJoinsParts {
+				r.IRCh <- f
+			}
+			if db != nil {
+				go irchuubase.Log(f, db, logger)
+			}
 			names[event.Nick] = 0
 		}
 	})
 
 	irchuu.AddCallback("QUIT", func(event *irc.Event) {
-		if event.Arguments[0] == c.Channel {
-			names[event.Nick] = 0
+		var reason string
+		if len(event.Arguments) > 0 {
+			reason = event.Arguments[0]
 		}
+		f := formatMessage(event.Nick, reason, "QUIT")
+		if c.RelayJoinsParts {
+			r.IRCh <- f
+		}
+		if db != nil {
+			go irchuubase.Log(f, db, logger)
+		}
+		names[event.Nick] = 0
 	})
 
 	irchuu.AddCallback("MODE", func(event *irc.Event) {
-		if event.Arguments[0] == c.Channel && len(event.Arguments) > 2 {
-			for k, o := range parseMode(event) {
-				names[k] = o
+		if event.Arguments[0] == c.Channel {
+			f := formatMessage(event.Nick, strings.Join(event.Arguments, " "), "MODE")
+			if c.RelayModes {
+				r.IRCh <- f
+			}
+			if db != nil {
+				go irchuubase.Log(f, db, logger)
+			}
+			if len(event.Arguments) > 2 {
+				for k, o := range parseMode(event) {
+					names[k] = o
+				}
 			}
 		}
 	})
@@ -432,6 +499,9 @@ func updateNames(irchuu *irc.Connection, c *config.Irc) {
 // into IRC.
 func relayMessagesToIRC(r *relay.Relay, c *config.Irc, irchuu *irc.Connection) {
 	for message := range r.TeleCh {
+		if message.Extra["break"] == "true" {
+			break
+		}
 		var messages []string
 		if message.Extra["special"] == "" {
 			messages = formatIRCMessages(message, c, 0)
@@ -451,6 +521,8 @@ func relayMessagesToIRC(r *relay.Relay, c *config.Irc, irchuu *irc.Connection) {
 func listenService(r *relay.Relay, c *config.Irc, irchuu *irc.Connection, names *map[string]int) {
 	for f := range r.TeleServiceCh {
 		switch f.Command {
+		case "break":
+			break
 		case "announce":
 			fallthrough
 		case "bot":
