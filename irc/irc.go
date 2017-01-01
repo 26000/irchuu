@@ -251,7 +251,6 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay, db *sql.DB) {
 	irchuu.AddCallback("366", func(event *irc.Event) {
 		if event.Arguments[1] == c.Channel {
 			names = tempNames
-			logger.Println("Finished updating names list.")
 		}
 	})
 
