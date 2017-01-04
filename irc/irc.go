@@ -576,6 +576,12 @@ func formatIRCMessages(message relay.Message, c *config.Irc, prefixLen int) []st
 	if message.Extra["forward"] != "" {
 		message.Text = fmt.Sprintf("[\x0310fwd\x0f from @%v] %v",
 			colorizeNick(message.Extra["forward"], c), message.Text)
+	} else if message.Extra["forwardChat"] != "" {
+		message.Text = fmt.Sprintf("[\x0310fwd\x0f from channel @%v] %v",
+			colorizeNick(message.Extra["forwardChat"], c), message.Text)
+	} else if message.Extra["forwardChatTitle"] != "" {
+		message.Text = fmt.Sprintf("[\x0310fwd\x0f from channel %v] %v",
+			colorizeNick(message.Extra["forwardChatTitle"], c), message.Text)
 	} else if message.Extra["reply"] != "" && message.Extra["replyUserID"] != "" {
 		message.Text = fmt.Sprintf("@%v, %v",
 			colorizeNick(message.Extra["reply"], c), message.Text)

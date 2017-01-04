@@ -374,6 +374,12 @@ func formatMessage(message *tgbotapi.Message, id int, prefix string) relay.Messa
 		extra["forward"] = message.ForwardFrom.String()
 		extra["forwardUserID"] = strconv.Itoa(message.ForwardFrom.ID)
 		extra["forwardDate"] = strconv.Itoa(message.ForwardDate)
+	} else if message.ForwardFromChat != nil {
+		extra["forwardChat"] = message.ForwardFromChat.UserName
+		extra["forwardChatTitle"] = message.ForwardFromChat.Title
+		extra["forwardChatID"] = strconv.FormatInt(message.ForwardFromChat.ID,
+			10)
+		extra["forwardDate"] = strconv.Itoa(message.ForwardDate)
 	}
 
 	if message.EditDate != 0 {
@@ -449,6 +455,9 @@ func formatMessage(message *tgbotapi.Message, id int, prefix string) relay.Messa
 		extra["foursquare"] = message.Venue.FoursquareID
 		message.Text += fmt.Sprintf("location \"%v\": https://www.google.com/maps/@%v,%v,14z",
 			extra["venue"], extra["lat"], extra["lng"])
+	case message.Game != nil:
+		extra["game"] = message.Game.Title
+		message.Text = "[game]" + extra["game"] + "\n" + message.Game.Text
 	case message.NewChatMember != nil:
 		extra["special"] = "newChatMember"
 		extra["memberID"] = strconv.Itoa(message.NewChatMember.ID)
