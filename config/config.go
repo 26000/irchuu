@@ -69,11 +69,15 @@ downloadmedia = false # downloads media to $XDG_DATA_HOME/irchuu or
                       # ~/.local/share/irchuu/
 servemedia = false # serve mediafiles over HTTP and append links to the messages
                    # requires downloadmedia to be true
+certfilepath = # if certfilepath and keyfilepath are not nil, then will serve
+               # using https
+keyfilepath =
 readtimeout = 100 # (seconds)
 writetimeout = 20 # (seconds)
 serverport = 8080 # port for media server
 baseurl = http://localhost:8080 # usually your protocol plus IP or domain plus the port
                                 # WITHOUT THE TRAILING SLASH
+				# don't forget to change http to https if enabled
 
 [irc]
 server = irc.rizon.net
@@ -184,6 +188,8 @@ type Telegram struct {
 
 	DownloadMedia bool
 	ServeMedia    bool
+	CertFilePath  string
+	KeyFilePath   string
 	ServerPort    uint16
 	ReadTimeout   int
 	WriteTimeout  int

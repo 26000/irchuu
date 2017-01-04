@@ -19,5 +19,10 @@ func Serve(c *config.Telegram) {
 		MaxHeaderBytes: 1 << 20,
 		ErrorLog:       logger,
 	}
-	logger.Println(s.ListenAndServe())
+
+	if c.CertFilePath != "" && c.KeyFilePath != "" {
+		logger.Println(s.ListenAndServeTLS(c.CertFilePath, c.KeyFilePath))
+	} else {
+		logger.Println(s.ListenAndServe())
+	}
 }
