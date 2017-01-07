@@ -148,18 +148,18 @@ func listenService(r *relay.Relay, c *config.Telegram, bot *tgbotapi.BotAPI) {
 					[]string{"An error occured: \x02" +
 						err.Error()},
 				}
-				return
-			}
-			text := "Sent a sticker"
-			if c.DownloadMedia {
-				url, _ := download(bot, sent.Sticker.FileID, c)
-				if c.ServeMedia {
-					text += " (" + url + ")"
+			} else {
+				text := "Sent a sticker"
+				if c.DownloadMedia {
+					url, _ := download(bot, sent.Sticker.FileID, c)
+					if c.ServeMedia {
+						text += " (" + url + ")"
+					}
 				}
-			}
-			r.TeleServiceCh <- relay.ServiceMessage{
-				"announce",
-				[]string{text},
+				r.TeleServiceCh <- relay.ServiceMessage{
+					"announce",
+					[]string{text},
+				}
 			}
 		case "kick":
 			id, _ := strconv.Atoi(f.Arguments[0])

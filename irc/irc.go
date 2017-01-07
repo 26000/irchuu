@@ -722,7 +722,7 @@ func processCmd(event *irc.Event, irchuu *irc.Connection, c *config.Irc, r *rela
 			" version\x0f — get version"
 		texts[9] = "Some of these commands are available in PM."
 		if c.AllowStickers {
-			texts[7] = c.Nick + " \x02sticker\x0f [id] — send a sticker"
+			texts[7] = c.Nick + " \x02sticker [id]\x0f — send a sticker"
 		}
 		if db != nil {
 			texts[4] = c.Nick +
