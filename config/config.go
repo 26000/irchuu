@@ -8,8 +8,8 @@ import (
 )
 
 const (
-	VERSION = "0.3.0"
-	LAYER   = 4
+	VERSION = "0.4.0"
+	LAYER   = 6
 )
 
 // ReadConfig reads the configuration file.
@@ -77,7 +77,7 @@ writetimeout = 20 # (seconds)
 serverport = 8080 # port for media server
 baseurl = http://localhost:8080 # usually your protocol plus IP or domain plus the port
                                 # WITHOUT THE TRAILING SLASH
-				# don't forget to change http to https if enabled
+                                # don't forget to change http to https if enabled
 
 [irc]
 server = irc.rizon.net
@@ -110,6 +110,8 @@ moderation = true # allow ops in IRC to kick users from Telegram
 
 kickpermission = 4 # who can kick users from the Telegram group:
                    # 1 — everybody, 2 — voices, 3 — halfops, 4 — ops, 5 — protected/admins, 6 — the owner
+
+allowstickers = true # allow sending stickers from IRC? (by id)
 
 NamesUpdateInterval = 600 # (seconds) how often to poll the server for the
                           # users list
@@ -151,13 +153,14 @@ type Irc struct {
 	Channel      string
 	ChanPassword string
 
-	Colorize   bool
-	Palette    []string
-	Prefix     string
-	Postfix    string
-	MaxLength  int
-	Ellipsis   string
-	FloodDelay int
+	Colorize      bool
+	Palette       []string
+	Prefix        string
+	Postfix       string
+	MaxLength     int
+	Ellipsis      string
+	FloodDelay    int
+	AllowStickers bool
 
 	Moderation          bool
 	KickPermission      int

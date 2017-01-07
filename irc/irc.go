@@ -81,9 +81,6 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay, db *sql.DB) {
 			if db != nil {
 				go irchuubase.Log(f, db, logger)
 			}
-			if strings.HasPrefix(event.Message(), c.Nick) {
-				processCmd(event, irchuu, c, r, db, &names)
-			}
 		} else {
 			logger.Printf("Notice from %v: %v\n",
 				event.Nick, event.Message())
@@ -716,14 +713,17 @@ func processCmd(event *irc.Event, irchuu *irc.Connection, c *config.Irc, r *rela
 	}
 	switch cmd[1] {
 	case "help":
-		texts := make([]string, 9)
+		texts := make([]string, 10)
 		texts[0] = "Available commands:"
 		texts[1] = c.Nick + " \x02help\x0f — show this help"
 		texts[2] = c.Nick + " \x02ops\x0f — show Telegram group ops"
 		texts[3] = c.Nick + " \x02count\x0f — show Telegram group user count"
-		texts[7] = "\x02/ctcp " + irchuu.GetNick() +
+		texts[8] = "\x02/ctcp " + irchuu.GetNick() +
 			" version\x0f — get version"
-		texts[8] = "Some of these commands are available in PM."
+		texts[9] = "Some of these commands are available in PM."
+		if c.AllowStickers {
+			texts[7] = c.Nick + " \x02sticker\x0f [id] — send a sticker"
+		}
 		if db != nil {
 			texts[4] = c.Nick +
 				" \x02hist [n]\x0f — get [n] last messages in PM"
@@ -761,6 +761,11 @@ func processCmd(event *irc.Event, irchuu *irc.Connection, c *config.Irc, r *rela
 		}
 	case "ops":
 		r.IRCServiceCh <- relay.ServiceMessage{"ops", nil}
+	case "sticker":
+		if c.AllowStickers && len(cmd) > 2 {
+			time.Sleep(time.Duration(50) * time.Millisecond)
+			r.IRCServiceCh <- relay.ServiceMessage{"sticker", []string{cmd[2]}}
+		}
 	case "count":
 		r.IRCServiceCh <- relay.ServiceMessage{"count", nil}
 	case "unban":

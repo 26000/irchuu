@@ -78,7 +78,9 @@ func processChatMessage(bot *tgbotapi.BotAPI, c *config.Telegram, message *tgbot
 				logger.Printf("Could not download media %v: %v\n",
 					f.Extra["mediaID"], err)
 			} else {
-				f.Extra["url"] = url
+				if c.ServeMedia {
+					f.Extra["url"] = url
+				}
 			}
 		}
 		r.TeleCh <- f
@@ -136,6 +138,28 @@ func listenService(r *relay.Relay, c *config.Telegram, bot *tgbotapi.BotAPI) {
 							"\x0f",
 						opsStr)},
 				}
+			}
+		case "sticker":
+			sticker := tgbotapi.NewStickerShare(c.Group, f.Arguments[0])
+			sent, err := bot.Send(sticker)
+			if err != nil {
+				r.TeleServiceCh <- relay.ServiceMessage{
+					"announce",
+					[]string{"An error occured: \x02" +
+						err.Error()},
+				}
+				return
+			}
+			text := "Sent a sticker"
+			if c.DownloadMedia {
+				url, _ := download(bot, sent.Sticker.FileID, c)
+				if c.ServeMedia {
+					text += " (" + url + ")"
+				}
+			}
+			r.TeleServiceCh <- relay.ServiceMessage{
+				"announce",
+				[]string{text},
 			}
 		case "kick":
 			id, _ := strconv.Atoi(f.Arguments[0])
