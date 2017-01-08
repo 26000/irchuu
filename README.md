@@ -15,8 +15,10 @@ A Telegram<->IRC transport.
 - [x] Preserve formatted text
 - [x] /me command support from IRC
 - [x] Replies, forwards support
-- [x] Documents: serving them as links in IRC
-- [ ] Pictures: serving and Imgur uploads
+- [x] Files: showing them as links in IRC, either uploading to a pomf-like hosting or serving with a built-in server
+  - [x] Built-in server
+  - [x] Pomf clones support
+  - [ ] [Komf](https://github.com/koto-bank/komf) support
 - [x] Moderation of the Telegram group from IRC
 - [x] Moderation of the IRC channel from Telegram
 - [x] Invitations to IRC from Telegram
@@ -37,6 +39,7 @@ A Telegram<->IRC transport.
 - [ ] WeeChat plugin
 - [ ] Unit tests
 - [x] Automatically check for updates
-- [ ] Reorganize code, split some files into several
 
-- [ ] PM support
+- [ ] Docs
+- [ ] A nice README.md file
+
