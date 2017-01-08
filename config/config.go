@@ -8,8 +8,8 @@ import (
 )
 
 const (
-	VERSION = "0.4.0"
-	LAYER   = 6
+	VERSION = "0.5.0"
+	LAYER   = 7
 )
 
 // ReadConfig reads the configuration file.
@@ -41,93 +41,151 @@ func ReadConfig(path string) (error, *Irc, *Telegram, *Irchuu) {
 func PopulateConfig(file string) error {
 	config := `# IRChuu configuration file. See https://github.com/26000/irchuu for help.
 [irchuu]
-dburi = # URI of your PostgreSQL database
-        # if blank, logging and kicking Telegram users from IRC will be unavailable
-sendstats = true # send usage statistics
-                 # data what you will share:
-                 # - the hashes of your Telegram group id and IRC channel
-		 # - your IRChuu version
-                 # - your IP
-checkupdates = true # check for updates on each start
+
+# URI of your PostgreSQL database
+# if blank, logging and kicking Telegram users from IRC will be unavailable
+dburi = 
+
+# send usage statistics
+# data what you will share:
+# - the hashes of your Telegram group id and IRC channel
+# - your IRChuu version
+# - your IP
+sendstats = true
+
+# check for updates on each start
+checkupdates = true
 
 [telegram]
 token = myToken
 group = 7654321
 
-TTL = 300 # (seconds) If message was sent more than <TTL> seconds ago, it won't be relayed
-          # 0 to disable
+# If message was sent more than <TTL> seconds ago, it won't be relayed
+# 0 to disable
+TTL = 300 # (seconds)
 
-prefix = < # will be added before nicks
-postfix = > # will be added after nicks
+# prefix and postfix will be added before and after nicks
+prefix = <
+postfix = >
 
-allowbots = true # allow sending messages without nick prefix (/bot command)
-allowinvites = false # allow invites to the IRC channel from Telegram
-moderation = true # allow moderators in Telegram to kick users from IRC
-                  # (bot needs to have permissions for that in IRC)
+# allow sending messages without nick prefix (/bot command)
+allowbots = true
 
-downloadmedia = false # downloads media to $XDG_DATA_HOME/irchuu or 
-                      # ~/.local/share/irchuu/
-servemedia = false # serve mediafiles over HTTP and append links to the messages
-                   # requires downloadmedia to be true
-certfilepath = # if certfilepath and keyfilepath are not nil, then will serve
-               # using https
+# allow invites to the IRC channel from Telegram
+allowinvites = false
+
+# allow moderators in Telegram to kick users from IRC
+# (bot needs to have permissions for that in IRC)
+moderation = true
+
+# download all media files to $XDG_DATA_HOME/irchuu or 
+downloadmedia = false
+
+# 'none', 'server' or 'pomf', where to store mediafiles from Telegram to show
+# them in IRC
+#
+# 'server' will serve files over HTTP(S), needs 'serverport', 'baseurl',
+# 'readtimeout' and 'writetimeout' to be set, 'downloadmedia' must be true
+#
+# 'pomf' will upload all media files to a pomf clone, needs 'pomf' to be set
+storage = none
+
+## SERVER
+# if certfilepath and keyfilepath are not nil, then will serve using HTTPS
+certfilepath =
 keyfilepath =
+
+# request timeouts for the media server
 readtimeout = 100 # (seconds)
 writetimeout = 20 # (seconds)
-serverport = 8080 # port for media server
-baseurl = http://localhost:8080 # usually your protocol plus IP or domain plus the port
-                                # WITHOUT THE TRAILING SLASH
-                                # don't forget to change http to https if enabled
+
+# port for the media file server
+serverport = 8080
+
+# usually your protocol plus IP or domain plus the port, WITHOUT THE TRAILING SLASH
+# don't forget to change http to https if enabled
+baseurl = http://localhost:8080
+
+## POMF
+# the pomf clone url (the list can be found at
+# https://docs.google.com/spreadsheets/d/1kh1TZdtyX7UlRd55OBxf7DB-JGj2rsfWckI0FPQRYhE)
+# the following should work with irchuu:
+# - https://mixtape.moe
+# - https://fluntcaps.me ( ;) )
+# - https://p.fuwafuwa.moe
+# - https://cocaine.ninja
+# and many more. But some are retarded and won't.
+pomf = https://mixtape.moe
 
 [irc]
 server = irc.rizon.net
 port = 6667
 ssl = false
-serverpassword = # leave blank if not set
+serverpassword =
 
 nick = irchuu
-password = # if not blank, will use NickServ to identify
-sasl = false # if true, will use SASL instead of NickServ
 
-channel = ` + "`" + `#irchuu` + "`" + ` # must be surrounded with backticks
-chanpassword = # leave blank if not set
+# if not blank, will use NickServ to identify
+password =
 
-colorize = true # colorize nicknames? (based on djb2)
-palette = 1,2,3,4,5,6,9,10,11,12,13 # colors to be used, either codes or names
-prefix = < # will be added before nicks
-postfix = > # will be added after nicks
-maxlength = 18 # maximum username length allowed, will be ellipsised if longer
-               # set to 0 to disable
-ellipsis = "… " # lines in multi-line messages will be divided with this
-                # leave blank to send them as separate messages
+# if true, will use SASL instead of NickServ
+sasl = false
 
-flooddelay = 500 # (milliseconds) delay with which parts of multi-line message
-                 # are sent to prevent anti-flood from kicking the bot
+# must be surrounded with backticks
+channel = ` + "`" + `#irchuu` + "`" + `
+chanpassword =
 
-moderation = true # allow ops in IRC to kick users from Telegram
-                  # (bot needs to be a moderator in Telegram)
-                  # works only when dbURI is set
+# colorize nicknames? (based on djb2)
+colorize = true
 
-kickpermission = 4 # who can kick users from the Telegram group:
-                   # 1 — everybody, 2 — voices, 3 — halfops, 4 — ops, 5 — protected/admins, 6 — the owner
+# colors to be used, either codes or names
+palette = 1,2,3,4,5,6,9,10,11,12,13
 
-allowstickers = true # allow sending stickers from IRC? (by id)
+# prefix and postfix will be added before and after nicks
+prefix = <
+postfix = >
 
-NamesUpdateInterval = 600 # (seconds) how often to poll the server for the
-                          # users list
+# maximum username length allowed, will be ellipsised if longer (0 to disable)
+maxlength = 18
 
-maxhist = 40 # maximum number of messages sent on ./hist command in IRC
-             # works only when dbURI is set
+# lines in multi-line messages will be divided with this
+# leave blank to send them as separate messages
+ellipsis = "… "
 
-sendnotices = true # will send NOTICEs for private messages (help, hist,
-                   # user count, etc) instead of PRIVMSGs
+# delay with which parts of multi-line message are sent to prevent anti-flood from kicking the bot
+flooddelay = 500 # (milliseconds)
 
-relayjoinsparts = true # forward joins and parts to Telegram
-relaymodes = true # forward MODE messages to Telegram
+# allow ops in IRC to kick users from Telegram
+# (bot needs to be a moderator in Telegram, also needs a database to be configured)
+moderation = true
 
-kickrejoin = true # rejoin automatically when kicked
+# who can kick users from the Telegram group:
+# 1 — everybody, 2 — voices, 3 — halfops, 4 — ops, 5 — protected/admins, 6 — the owner
+kickpermission = 4
 
-announcetopic = true # announce the current topic to Telegram on join
+# allow sending stickers from IRC? (by id)
+allowstickers = true
+
+# how often to poll the server for the users list
+namesupdateinterval = 600 # (seconds)
+
+# maximum number of messages sent on 'hist'command in IRC, works only with dburi set
+maxhist = 40
+
+# will send NOTICEs for private messages (help, hist, user count, etc) instead of PRIVMSGs
+sendnotices = true
+
+# forward join and part messages to Telegram
+relayjoinsparts = true
+
+# forward mode messages to Telegram
+relaymodes = true
+
+# rejoin automatically when kicked
+kickrejoin = true
+
+# announce the current topic to Telegram on join
+announcetopic = true
 `
 	return ioutil.WriteFile(file, []byte(config), os.FileMode(0600))
 }
@@ -190,7 +248,7 @@ type Telegram struct {
 	Moderation   bool
 
 	DownloadMedia bool
-	ServeMedia    bool
+	Storage       string
 	CertFilePath  string
 	KeyFilePath   string
 	ServerPort    uint16
@@ -198,6 +256,7 @@ type Telegram struct {
 	WriteTimeout  int
 	BaseURL       string
 	DataDir       string
+	Pomf          string
 }
 
 // muDeiPt5mAI8Ue==

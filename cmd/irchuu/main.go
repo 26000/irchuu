@@ -42,7 +42,7 @@ func main() {
 
 	tg.DataDir = dataDir
 
-	if tg.ServeMedia {
+	if tg.Storage == "server" {
 		go mediaserver.Serve(tg)
 	}
 

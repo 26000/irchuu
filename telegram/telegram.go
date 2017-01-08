@@ -8,6 +8,7 @@ import (
 	"github.com/26000/irchuu/db"
 	"github.com/26000/irchuu/paths"
 	"github.com/26000/irchuu/relay"
+	"github.com/26000/irchuu/upload"
 	"gopkg.in/telegram-bot-api.v4"
 	"html"
 	"io"
@@ -72,13 +73,22 @@ func processChatMessage(bot *tgbotapi.BotAPI, c *config.Telegram, message *tgbot
 	}
 	if c.TTL == 0 || c.TTL > (time.Now().Unix()-int64(message.Date)) {
 		f := formatMessage(message, bot.Self.ID, c.Prefix)
-		if c.DownloadMedia && f.Extra["mediaID"] != "" {
-			url, err := download(bot, f.Extra["mediaID"], c)
-			if err != nil {
-				logger.Printf("Could not download media %v: %v\n",
-					f.Extra["mediaID"], err)
-			} else {
-				if c.ServeMedia {
+		if f.Extra["mediaID"] != "" {
+			switch {
+			case c.Storage == "pomf":
+				url, err := upload.Pomf(bot, f.Extra["mediaID"], c)
+				if err != nil {
+					logger.Printf("Could not upload media %v: %v\n",
+						f.Extra["mediaID"], err)
+				} else {
+					f.Extra["url"] = url
+				}
+			case c.DownloadMedia:
+				url, err := download(bot, f.Extra["mediaID"], c)
+				if err != nil {
+					logger.Printf("Could not download media %v: %v\n",
+						f.Extra["mediaID"], err)
+				} else if c.Storage == "server" {
 					f.Extra["url"] = url
 				}
 			}
@@ -141,7 +151,7 @@ func listenService(r *relay.Relay, c *config.Telegram, bot *tgbotapi.BotAPI) {
 			}
 		case "sticker":
 			sticker := tgbotapi.NewStickerShare(c.Group, f.Arguments[0])
-			sent, err := bot.Send(sticker)
+			_, err := bot.Send(sticker)
 			if err != nil {
 				r.TeleServiceCh <- relay.ServiceMessage{
 					"announce",
@@ -150,9 +160,15 @@ func listenService(r *relay.Relay, c *config.Telegram, bot *tgbotapi.BotAPI) {
 				}
 			} else {
 				text := "Sent a sticker"
-				if c.DownloadMedia {
-					url, _ := download(bot, sent.Sticker.FileID, c)
-					if c.ServeMedia {
+				switch {
+				case c.Storage == "pomf":
+					url, err := upload.Pomf(bot, f.Arguments[0], c)
+					if err == nil {
+						text += " (" + url + ")"
+					}
+				case c.DownloadMedia:
+					url, err := download(bot, f.Arguments[0], c)
+					if err == nil && c.Storage == "server" {
 						text += " (" + url + ")"
 					}
 				}
@@ -545,19 +561,7 @@ func download(bot *tgbotapi.BotAPI, id string, c *config.Telegram) (url string, 
 		return
 	}
 	defer res.Close()
-	buf := make([]byte, 1024)
-	for {
-		n, werr := downloadable.Body.Read(buf)
-		if werr != nil && werr != io.EOF {
-			return "", werr
-		}
-		if n == 0 {
-			break
-		}
-		if _, err := res.Write(buf[:n]); err != nil {
-			return "", err
-		}
-	}
+	io.Copy(res, downloadable.Body)
 	url = c.BaseURL + "/" + id + "/" + fileStrings[len(fileStrings)-1]
 	return
 }
