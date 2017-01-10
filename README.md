@@ -18,7 +18,7 @@ A Telegram<->IRC transport.
 - [x] Files: showing them as links in IRC, either uploading to a pomf-like hosting or serving with a built-in server
   - [x] Built-in server
   - [x] Pomf clones support
-  - [ ] [Komf](https://github.com/koto-bank/komf) support
+  - [x] [Komf](https://github.com/koto-bank/komf) support
 - [x] Moderation of the Telegram group from IRC
 - [x] Moderation of the IRC channel from Telegram
 - [x] Invitations to IRC from Telegram

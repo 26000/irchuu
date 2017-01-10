@@ -83,6 +83,14 @@ func processChatMessage(bot *tgbotapi.BotAPI, c *config.Telegram, message *tgbot
 				} else {
 					f.Extra["url"] = url
 				}
+			case c.Storage == "komf":
+				url, err := upload.Komf(bot, f.Extra["mediaID"], c)
+				if err != nil {
+					logger.Printf("Could not upload media %v: %v\n",
+						f.Extra["mediaID"], err)
+				} else {
+					f.Extra["url"] = url
+				}
 			case c.DownloadMedia:
 				url, err := download(bot, f.Extra["mediaID"], c)
 				if err != nil {
@@ -163,6 +171,11 @@ func listenService(r *relay.Relay, c *config.Telegram, bot *tgbotapi.BotAPI) {
 				switch {
 				case c.Storage == "pomf":
 					url, err := upload.Pomf(bot, f.Arguments[0], c)
+					if err == nil {
+						text += " (" + url + ")"
+					}
+				case c.Storage == "komf":
+					url, err := upload.Komf(bot, f.Arguments[0], c)
 					if err == nil {
 						text += " (" + url + ")"
 					}

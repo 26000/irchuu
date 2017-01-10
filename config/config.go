@@ -88,6 +88,8 @@ downloadmedia = false
 # 'readtimeout' and 'writetimeout' to be set, 'downloadmedia' must be true
 #
 # 'pomf' will upload all media files to a pomf clone, needs 'pomf' to be set
+#
+# 'komf' will upload all media files to a komf (https://github.com/koto-bank/komf), needs 'komf' to be set
 storage = none
 
 ## SERVER
@@ -116,6 +118,13 @@ baseurl = http://localhost:8080
 # - https://cocaine.ninja
 # and many more. But some are retarded and won't.
 pomf = https://mixtape.moe
+
+## KOMF
+# a komf site url, you can set up your own: https://github.com/koto-bank/komf
+komf =
+
+# how much time will the file be stored for? (day, week, month)
+komfdate = week
 
 [irc]
 server = irc.rizon.net
@@ -257,6 +266,8 @@ type Telegram struct {
 	BaseURL       string
 	DataDir       string
 	Pomf          string
+	Komf          string
+	KomfDate      string
 }
 
 // muDeiPt5mAI8Ue==
