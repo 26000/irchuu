@@ -139,7 +139,7 @@ func uploadRemoteFileKomf(file string, localUrl string, id string, name string, 
 		return
 	}
 
-	url = makeKomfDownloadUrl(c.Komf, string(body))
+	url = makeKomfDownloadUrl(c.KomfPublicURL, string(body))
 
 	return
 }
