@@ -72,7 +72,7 @@ func uploadLocalFileKomf(file string, c *config.Telegram) (url string, err error
 		return
 	}
 
-	url = makeKomfDownloadUrl(c.Komf, string(body))
+	url = makeKomfDownloadUrl(c.KomfPublicURL, string(body))
 	return
 }
 
