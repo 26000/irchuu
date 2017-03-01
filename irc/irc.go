@@ -609,7 +609,7 @@ func formatMediaMessage(message relay.Message, c *config.Irc) string {
 		text += " "
 	}
 	if message.Extra["url"] != "" {
-		text += "(" + message.Extra["url"] + ") "
+		text += "( " + message.Extra["url"] + " ) "
 	}
 	intSize, _ := strconv.ParseUint(message.Extra["size"], 10, 64)
 	size := bytefmt.ByteSize(intSize)
