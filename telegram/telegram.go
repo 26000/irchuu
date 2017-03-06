@@ -172,17 +172,17 @@ func listenService(r *relay.Relay, c *config.Telegram, bot *tgbotapi.BotAPI) {
 				case c.Storage == "pomf":
 					url, err := upload.Pomf(bot, f.Arguments[0], c)
 					if err == nil {
-						text += " (" + url + ")"
+						text += " ( " + url + " )"
 					}
 				case c.Storage == "komf":
 					url, err := upload.Komf(bot, f.Arguments[0], c)
 					if err == nil {
-						text += " (" + url + ")"
+						text += " ( " + url + " )"
 					}
 				case c.DownloadMedia:
 					url, err := download(bot, f.Arguments[0], c)
 					if err == nil && c.Storage == "server" {
-						text += " (" + url + ")"
+						text += " ( " + url + " )"
 					}
 				}
 				r.TeleServiceCh <- relay.ServiceMessage{
