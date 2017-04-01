@@ -70,4 +70,4 @@ Just type `irchuu`.
 Feel free to fork this repo and make PRs. If you encounter a bug, please open an issue — that also helps! I will also be happy if you give IRChuu a star on GitHub.
 
 ## Special thanks
-To @zephyyy and @koto-bank for support and motivation.
+To [zephy!](https://github.com/zephyyy) and [Kotobank!](https://kotobank.ch/) for support and motivation.
