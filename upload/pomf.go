@@ -24,7 +24,13 @@ func Pomf(bot *tgbotapi.BotAPI, id string, c *config.Telegram) (url string, err 
 		return
 	}
 	fileStrings := strings.Split(file, "/")
-	localUrl := path.Join(c.DataDir, id, fileStrings[len(fileStrings)-1])
+	fileName := strings.Split(fileStrings[len(fileStrings)-1], ".")
+
+	var ext string
+	if len(fileName) > 1 {
+		ext = "." + fileName[len(fileName)-1]
+	}
+	localUrl := path.Join(c.DataDir, id+ext)
 	// if it is already downloaded, just upload the local copy
 	if paths.Exists(localUrl) {
 		return uploadLocalFilePomf(localUrl, c)
@@ -84,16 +90,6 @@ func uploadLocalFilePomf(file string, c *config.Telegram) (url string, err error
 func uploadRemoteFilePomf(file string, localUrl string, id string, name string, c *config.Telegram) (url string, err error) {
 	downloadable, err := http.Get(file)
 	defer downloadable.Body.Close()
-	if c.DownloadMedia {
-		// create a directory for that file if needed
-		dir := path.Join(c.DataDir, id)
-		if !paths.Exists(dir) {
-			if err := os.MkdirAll(dir, os.FileMode(0755)); err != nil {
-				return "", err
-			}
-		}
-
-	}
 	var b bytes.Buffer
 	w := multipart.NewWriter(&b)
 	ff, err := w.CreateFormFile("files[]", name) // create the multipart file

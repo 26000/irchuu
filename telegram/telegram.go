@@ -14,7 +14,6 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"net/url"
 	"os"
 	"path"
 	"regexp"
@@ -550,23 +549,19 @@ func download(bot *tgbotapi.BotAPI, id string, c *config.Telegram) (url string, 
 		return
 	}
 	fileStrings := strings.Split(file, "/")
-	localUrl := path.Join(c.DataDir, id, url.PathEscape(fileStrings[len(fileStrings)-1]))
+	fileName := strings.Split(fileStrings[len(fileStrings)-1], ".")
+
+	var ext string
+	if len(fileName) > 1 {
+		ext = "." + fileName[len(fileName)-1]
+	}
+	localUrl := path.Join(c.DataDir, id+ext)
 	if paths.Exists(localUrl) {
-		url = c.BaseURL + "/" + id + "/" + url.PathEscape(fileStrings[len(fileStrings)-1])
+		url = c.BaseURL + "/" + id + ext
 		return
 	}
 	downloadable, err := http.Get(file)
 	defer downloadable.Body.Close()
-	if err != nil {
-		return
-	}
-	dir := path.Join(c.DataDir, id)
-	if !paths.Exists(dir) {
-		if err := os.MkdirAll(dir, os.FileMode(0755)); err != nil {
-			return "", err
-		}
-	}
-
 	if err != nil {
 		return
 	}
@@ -576,7 +571,7 @@ func download(bot *tgbotapi.BotAPI, id string, c *config.Telegram) (url string, 
 	}
 	defer res.Close()
 	io.Copy(res, downloadable.Body)
-	url = c.BaseURL + "/" + id + "/" + fileStrings[len(fileStrings)-1]
+	url = c.BaseURL + "/" + id + ext
 	return
 }
 
