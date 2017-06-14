@@ -38,7 +38,7 @@ func Report(irchuu *config.Irchuu, tg *config.Telegram, irc *config.Irc) {
 		}
 		layer, err := strconv.Atoi(string(body))
 		if err != nil {
-			log.Printf("Server is crazy, can't check for updates: %v.\n")
+			log.Printf("Server is crazy, can't check for updates: %v.\n", err)
 			return
 		}
 		if layer > config.LAYER {
