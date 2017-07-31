@@ -1,0 +1,6 @@
+user=irchuu
+group=irchuu
+data_home=/home/irchuu/.local/share/
+config_home=/home/irchuu/.config
+irchuu_exec=/home/irchuu/go/bin/irchuu
+irchuu_log=/var/log/irchuu.log
