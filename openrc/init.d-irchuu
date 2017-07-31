@@ -1,0 +1,25 @@
+#!/sbin/openrc-run
+
+pidfile="/var/run/${RC_SVCNAME}.run"
+
+depend() {
+	need net
+}
+
+start() {
+	ebegin "Starting ${RC_SVCNAME}"
+	checkpath -m 740 -o ${user}:${group} -f "${irchuu_log}"
+	start-stop-daemon --start --pidfile "${pidfile}" \
+		--exec "${irchuu_exec}" -u "${user}:${group}" \
+		-b -m -1 "${irchuu_log}" -2 "${irchuu_log}" \
+		-e XDG_DATA_HOME="${data_home}" -e XDG_CONFIG_HOME="${config_home}"
+	eend $?
+}
+
+stop() {
+	ebegin "Stopping ${RC_SVCNAME}"
+	start-stop-daemon --stop --pidfile "${pidfile}" \
+		--exec "${irchuu_exec}" -u "${user}:${group}" \
+		-e XDG_DATA_HOME="${data_home}" -e XDG_CONFIG_HOME="${config_home}"
+	eend $?
+}
