@@ -8,8 +8,8 @@ import (
 )
 
 const (
-	VERSION = "0.7.0"
-	LAYER   = 9
+	VERSION = "0.7.1"
+	LAYER   = 10
 )
 
 // ReadConfig reads the configuration file.
