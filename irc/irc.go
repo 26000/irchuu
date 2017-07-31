@@ -546,6 +546,10 @@ func listenService(r *relay.Relay, c *config.Irc, irchuu *irc.Connection, names 
 			}
 		case "topic":
 			irchuu.SendRawf("TOPIC %v", c.Channel)
+		case "shutdown":
+			irchuu.Quit()
+			time.Sleep(time.Second)
+			os.Exit(0)
 		}
 
 		if c.FloodDelay != 0 {

@@ -13,7 +13,9 @@ import (
 	"github.com/26000/irchuu/telegram"
 	"log"
 	"os"
+	"os/signal"
 	"sync"
+	"syscall"
 )
 
 func main() {
@@ -48,9 +50,19 @@ func main() {
 
 	hq.Report(irchuuConf, tg, irc)
 
+	sigCh := make(chan os.Signal, 2)
+	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
+	go sigNotify(sigCh, r)
+
 	var wg sync.WaitGroup
 	wg.Add(2)
 	go irchuu.Launch(irc, &wg, r, db)
 	go telegram.Launch(tg, &wg, r, db)
 	wg.Wait()
+}
+
+func sigNotify(sigCh chan os.Signal, r *relay.Relay) {
+	sig := <-sigCh
+	log.Printf("Caught signal: %v, exiting...\n", sig)
+	r.TeleServiceCh <- relay.ServiceMessage{"shutdown", []string{}}
 }
