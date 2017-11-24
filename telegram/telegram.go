@@ -196,7 +196,7 @@ func listenService(r *relay.Relay, c *config.Telegram, bot *tgbotapi.BotAPI) {
 				ChatID: c.Group,
 				UserID: id,
 			}
-			_, err := bot.KickChatMember(member)
+			_, err := bot.KickChatMember(tgbotapi.KickChatMemberConfig{member, 0})
 			if err != nil {
 				r.TeleServiceCh <- relay.ServiceMessage{
 					"announce",
@@ -511,10 +511,10 @@ func formatMessage(message *tgbotapi.Message, id int, prefix string) relay.Messa
 	case message.Game != nil:
 		extra["game"] = message.Game.Title
 		message.Text = "[game]" + extra["game"] + "\n" + message.Game.Text
-	case message.NewChatMember != nil:
+	case message.NewChatMembers != nil:
 		extra["special"] = "newChatMember"
-		extra["memberID"] = strconv.Itoa(message.NewChatMember.ID)
-		extra["memberName"] = message.NewChatMember.String()
+		extra["memberID"] = strconv.Itoa((*message.NewChatMembers)[0].ID)
+		extra["memberName"] = (*message.NewChatMembers)[0].String()
 	case message.LeftChatMember != nil:
 		extra["special"] = "leftChatMember"
 		extra["memberID"] = strconv.Itoa(message.LeftChatMember.ID)
