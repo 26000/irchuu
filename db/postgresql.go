@@ -79,7 +79,7 @@ func Init(dbURI string) *sql.DB {
 func GetMessages(db *sql.DB, n int) ([]relay.Message, error) {
 	msgs := make([]relay.Message, 0, n)
 	rows, err := db.Query(`SELECT date, source, coalesce(messages.nick,
-tg_users.nick), text, coalesce(msg_id, 0), coalesce(from_id, 0),
+tg_users.nick, ''), text, coalesce(msg_id, 0), coalesce(from_id, 0),
 coalesce(first_name, ' '), coalesce(last_name, ' '), extra FROM messages
 LEFT JOIN tg_users
 ON tg_users.id = messages.from_id ORDER BY date DESC LIMIT $1;`, n)
