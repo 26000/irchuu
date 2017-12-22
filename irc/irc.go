@@ -900,9 +900,11 @@ func splitLines(text string, max int, prefix string) []string {
 // formatNick processes nicknames.
 func formatNick(message relay.Message, c *config.Irc) string {
 	nick := message.Name()
+	unicodeNick := []rune(nick)
 
-	if c.MaxLength != 0 && len(nick) > c.MaxLength {
-		nick = nick[:c.MaxLength-1] + "…"
+	if c.MaxLength != 0 && len(unicodeNick) > c.MaxLength {
+		unicodeNick = append(unicodeNick[:c.MaxLength-1], rune('…'))
+		nick = string(unicodeNick)
 	}
 
 	if c.Colorize {
