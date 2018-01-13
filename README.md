@@ -1,4 +1,4 @@
-# [IRChuu](https://irchuu.kotobank.ch/)
+# [IRChuu](https://irchuu.kotobank.ch/) [![](https://goreportcard.com/badge/github.com/26000/irchuu)](https://goreportcard.com/report/github.com/26000/irchuu)
 ![IRChuu in WeeChat](http://irchuu.kotobank.ch/images/shadow/Screenshot_20170319_092103.png)
 
 A Telegram<->IRC transport.
