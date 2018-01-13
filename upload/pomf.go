@@ -1,4 +1,4 @@
-// upload contains functions to upload files on variuos file hostings.
+// Package upload contains functions to upload files on variuos file hostings.
 package upload
 
 import (
@@ -34,9 +34,8 @@ func Pomf(bot *tgbotapi.BotAPI, id string, c *config.Telegram) (url string, err 
 	// if it is already downloaded, just upload the local copy
 	if paths.Exists(localUrl) {
 		return uploadLocalFilePomf(localUrl, c)
-	} else {
-		return uploadRemoteFilePomf(file, localUrl, id, fileStrings[len(fileStrings)-1], c)
 	}
+	return uploadRemoteFilePomf(file, localUrl, id, fileStrings[len(fileStrings)-1], c)
 }
 
 // uploadLocalFilePomf actually uploads the file to a pomf clone using HTTP POST with

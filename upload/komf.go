@@ -32,9 +32,8 @@ func Komf(bot *tgbotapi.BotAPI, id string, c *config.Telegram) (url string, err 
 	// if it is already downloaded, just upload the local copy
 	if paths.Exists(localUrl) {
 		return uploadLocalFileKomf(localUrl, c)
-	} else {
-		return uploadRemoteFileKomf(file, localUrl, id, fileStrings[len(fileStrings)-1], c)
 	}
+	return uploadRemoteFileKomf(file, localUrl, id, fileStrings[len(fileStrings)-1], c)
 }
 
 // uploadLocalFileKomf actually uploads the file to a komf using HTTP POST with

@@ -9,6 +9,7 @@ import (
 	"time"
 )
 
+// Serve creates a web server and serves media files.
 func Serve(c *config.Telegram) {
 	logger := log.New(os.Stdout, "SRV ", log.LstdFlags)
 	s := &http.Server{

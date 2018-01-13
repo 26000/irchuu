@@ -60,9 +60,8 @@ func CreateDir(dir string, mode os.FileMode) error {
 	if !Exists(dir) {
 		if err := os.MkdirAll(dir, mode); err != nil {
 			return err
-		} else {
-			log.Printf("Created directory: %v\n", dir)
 		}
+		log.Printf("Created directory: %v\n", dir)
 	}
 	return nil
 }

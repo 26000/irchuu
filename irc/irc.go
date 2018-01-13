@@ -1,4 +1,4 @@
-// irchuu contains everything related to the IRC part of IRChuu.
+// Package irchuu contains everything related to the IRC part of IRChuu.
 package irchuu
 
 import (

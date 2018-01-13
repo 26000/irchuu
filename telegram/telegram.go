@@ -1,4 +1,4 @@
-// telegram contains everything related to the Telegram part of IRChuu.
+// Package telegram contains everything related to the Telegram part of IRChuu.
 package telegram
 
 import (

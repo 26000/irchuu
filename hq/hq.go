@@ -11,6 +11,7 @@ import (
 	"strconv"
 )
 
+// URI of the HQ endpoint.
 const URI = "https://kotobank.ch/irchuu/z"
 
 // Report checks for a new version sending data if enabled.
