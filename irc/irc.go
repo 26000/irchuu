@@ -947,5 +947,5 @@ func colorizeNick(s string, c *config.Irc) string {
 	if i < 0 {
 		i += int32(len(c.Palette))
 	}
-	return "\x03" + c.Palette[i] + s + "\x03"
+	return "\x03" + c.Palette[i] + s + "\x0f"
 }
