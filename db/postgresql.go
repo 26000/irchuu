@@ -7,6 +7,7 @@ import (
 	_ "github.com/lib/pq"
 	"log"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -17,6 +18,13 @@ func Log(msg relay.Message, db *sql.DB, logger *log.Logger) {
 		logger.Printf("An error occurred while marshalling the extra data: %v.",
 			err)
 	}
+
+	// If message text contains null, pg will crash
+	if strings.Contains(msg.Text, "\xd0") {
+		logger.Printf("Will not log %v from %v: malformed data", msg.Text, msg.FromID)
+		return
+	}
+
 	if msg.Source {
 		// Telegram
 		rows1, err := db.Query("INSERT INTO"+
