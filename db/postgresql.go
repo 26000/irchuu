@@ -20,7 +20,7 @@ func Log(msg relay.Message, db *sql.DB, logger *log.Logger) {
 	}
 	if !utf8.Valid([]byte(msg.Text)) || !utf8.Valid([]byte(extraString)) || !utf8.Valid([]byte(msg.FirstName)) || !utf8.Valid([]byte(msg.Nick)) || !utf8.Valid([]byte(msg.LastName)) {
 		logger.Printf("Invalid Unicode byte sequence detected, "+
-			"refusing to log: %v: '%v'\n", msg.FromID, msg.Text)
+			"refusing to log: %v/%v: '%v'\n", msg.FromID, msg.Nick, msg.Text)
 		return
 	}
 	if msg.Source {
