@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"time"
+	"unicode/utf8"
 )
 
 // Log inserts a message into the DB.
@@ -16,6 +17,11 @@ func Log(msg relay.Message, db *sql.DB, logger *log.Logger) {
 	if err != nil {
 		logger.Printf("An error occurred while marshalling the extra data: %v.",
 			err)
+	}
+	if !utf8.Valid([]byte(msg.Text)) || !utf8.Valid([]byte(extraString)) || !utf8.Valid([]byte(msg.FirstName)) || !utf8.Valid([]byte(msg.Nick)) || !utf8.Valid([]byte(msg.LastName)) {
+		logger.Printf("Invalid Unicode byte sequence detected, "+
+			"refusing to log: %v: '%v'\n", msg.FromID, msg.Text)
+		return
 	}
 	if msg.Source {
 		// Telegram
