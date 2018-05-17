@@ -33,7 +33,7 @@ h1 > small {
 }
 
 .first.supercontainer {
-  background: url(/images/nosplash/osman-rana-182134.jpg) fixed no-repeat center/cover;
+  background: url(images/nosplash/osman-rana-182134.jpg) fixed no-repeat center/cover;
   padding-bottom: 2rem;
 }
 
