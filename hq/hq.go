@@ -18,7 +18,6 @@ const URI = "https://26000.github.io/irchuu/version.json"
 // Report checks for a new version sending data if enabled.
 func Report(irchuu *config.Irchuu, tg *config.Telegram, irc *config.Irc) {
 	if irchuu.CheckUpdates || irchuu.SendStats {
-		var data url.Values
 		resp, err := http.Get(URI)
 		if err != nil {
 			log.Printf("Failed to connect to HQ entrance (check for updates and/or share stats): %v.\n",
@@ -51,6 +50,7 @@ func Report(irchuu *config.Irchuu, tg *config.Telegram, irc *config.Irc) {
 		}
 
 		if irchuu.SendStats {
+			//var data url.Values
 			//data = captureData(tg, irc)
 		}
 	}
