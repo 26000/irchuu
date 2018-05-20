@@ -33,7 +33,7 @@ func Report(irchuu *config.Irchuu, tg *config.Telegram, irc *config.Irc) {
 		}
 
 		arr := make([]string, 4)
-		err = json.Unmarshal(body, arr)
+		err = json.Unmarshal(body, &arr)
 		if err != nil {
 			log.Printf("HQ entrance is crazy! Could not check for updates: %v.\n", err)
 		}
