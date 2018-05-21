@@ -1,14 +1,15 @@
 package hq
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"github.com/26000/irchuu/config"
 	"io/ioutil"
 	"log"
 	"net/http"
-	"net/url"
 	"strconv"
 )
 
@@ -50,17 +51,22 @@ func Report(irchuu *config.Irchuu, tg *config.Telegram, irc *config.Irc) {
 		}
 
 		if irchuu.SendStats {
-			//var data url.Values
-			//data = captureData(tg, irc)
+			tgHash := sha256.Sum256([]byte(strconv.FormatInt(tg.Group, 10)))
+			ircHash := sha256.Sum256([]byte(irc.Channel))
+
+			// not nice, but relatively readable...
+			resp, err := http.Post(arr[1], "application/json",
+				bytes.NewReader([]byte(fmt.Sprintf(`{ "text": "laucnhed with tg: %v, irc: %v, layer: %v",
+				"format": "plain", "displayName": "IRChuu~" }`,
+					base64.StdEncoding.EncodeToString(tgHash[:31]),
+					base64.StdEncoding.EncodeToString(ircHash[:31]),
+					config.LAYER))))
+			if err != nil {
+				log.Printf("Failed to send usage stats: %v.\n", err)
+			}
+			if resp.Body != nil {
+				resp.Body.Close()
+			}
 		}
 	}
-}
-
-// captureData generates data to be sent on server.
-func captureData(tg *config.Telegram, irc *config.Irc) url.Values {
-	tgHash := sha256.Sum256([]byte(strconv.FormatInt(tg.Group, 10)))
-	ircHash := sha256.Sum256([]byte(irc.Channel))
-	return url.Values{"tg": {base64.StdEncoding.EncodeToString(tgHash[:31])},
-		"irc":   {base64.StdEncoding.EncodeToString(ircHash[:31])},
-		"layer": {strconv.Itoa(config.LAYER)}}
 }
