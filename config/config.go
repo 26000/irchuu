@@ -56,7 +56,6 @@ dburi =
 # data what you will share:
 # - the hashes of your Telegram group id and IRC channel
 # - your IRChuu version
-# - your IP
 sendstats = true
 
 # check for updates on each start
