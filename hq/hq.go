@@ -56,7 +56,7 @@ func Report(irchuu *config.Irchuu, tg *config.Telegram, irc *config.Irc) {
 
 			// not nice, but relatively readable...
 			resp, err := http.Post(arr[1], "application/json",
-				bytes.NewReader([]byte(fmt.Sprintf(`{ "text": "laucnhed with tg: %v, irc: %v, layer: %v",
+				bytes.NewReader([]byte(fmt.Sprintf(`{ "text": "launched with tg: %v, irc: %v, layer: %v",
 				"format": "plain", "displayName": "IRChuu~" }`,
 					base64.StdEncoding.EncodeToString(tgHash[:31]),
 					base64.StdEncoding.EncodeToString(ircHash[:31]),
