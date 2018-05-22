@@ -1,4 +1,4 @@
-# [IRChuu](https://irchuu.kotobank.ch/) [![](https://goreportcard.com/badge/github.com/26000/irchuu)](https://goreportcard.com/report/github.com/26000/irchuu)
+# [IRChuu](https://26000.github.io/irchuu/) [![](https://goreportcard.com/badge/github.com/26000/irchuu)](https://goreportcard.com/report/github.com/26000/irchuu)
 ![IRChuu in WeeChat](https://26000.github.io/irchuu/images/shadow/Screenshot_20170319_092103.png)
 
 A Telegram<->IRC transport.
@@ -23,7 +23,7 @@ You need to install [golang](https://golang.org/doc/install), [git](https://git-
 
 After that, install IRChuu~:
 ```
-$ go get irchuu.kotobank.ch/cmd/irchuu
+$ go get github.com/26000/irchuu/cmd/irchuu
 ```
 
 ### Configuration
