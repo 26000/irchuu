@@ -63,8 +63,7 @@ func Report(irchuu *config.Irchuu, tg *config.Telegram, irc *config.Irc) {
 					config.LAYER))))
 			if err != nil {
 				log.Printf("Failed to send usage stats: %v.\n", err)
-			}
-			if resp.Body != nil {
+			} else if resp != nil && resp.Body != nil {
 				resp.Body.Close()
 			}
 		}
