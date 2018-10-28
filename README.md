@@ -27,7 +27,7 @@ $ go get github.com/26000/irchuu/cmd/irchuu
 ```
 
 ### Configuration
-Run IRChuu~ for the first time and it will create a configuration file:
+Run IRChuu~ for the first time and it will create a configuration file (you can also use `-data` and `-config` command-line arguments to specify a custom path):
 ```
 $ irchuu
 IRChuu! v0.6.0 (https://github.com/26000/irchuu)

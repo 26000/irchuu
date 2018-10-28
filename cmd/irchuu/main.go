@@ -2,7 +2,14 @@ package main
 
 import (
 	"database/sql"
+	"flag"
 	"fmt"
+	"log"
+	"os"
+	"os/signal"
+	"sync"
+	"syscall"
+
 	"github.com/26000/irchuu/config"
 	"github.com/26000/irchuu/db"
 	"github.com/26000/irchuu/hq"
@@ -11,17 +18,18 @@ import (
 	"github.com/26000/irchuu/relay"
 	"github.com/26000/irchuu/server"
 	"github.com/26000/irchuu/telegram"
-	"log"
-	"os"
-	"os/signal"
-	"sync"
-	"syscall"
 )
 
 func main() {
 	fmt.Printf("IRChuu! v%v (https://github.com/26000/irchuu)\n", config.VERSION)
 
 	configFile, dataDir := paths.GetPaths()
+
+	flag.StringVar(&configFile, "config", configFile, "path to the configuration file (will be created if not exists)")
+	flag.StringVar(&dataDir, "data", dataDir, "path to the data dir")
+
+	flag.Parse()
+
 	err := paths.MakePaths(configFile, dataDir)
 	if err != nil {
 		os.Exit(1)
