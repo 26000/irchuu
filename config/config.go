@@ -9,10 +9,10 @@ import (
 
 const (
 	// VERSION contains the IRChuu~ version.
-	VERSION = "0.8.0"
+	VERSION = "0.9.0"
 	// LAYER contains IRChuu~ version in an integer (for comparison with
 	// HQ server's last version).
-	LAYER = 13
+	LAYER = 14
 )
 
 // ReadConfig reads the configuration file.
