@@ -34,7 +34,7 @@ $ go get -u github.com/26000/irchuu/cmd/irchuu
 #### go modules mode, go >= 1.11
 Install and/or upgrade:
 ```
-$ go get github.com/26000/irchuu/...
+$ go get github.com/26000/irchuu/cmd/irchuu
 ```
 
 ### Configuration

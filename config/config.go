@@ -9,7 +9,7 @@ import (
 
 const (
 	// VERSION contains the IRChuu~ version.
-	VERSION = "0.9.0"
+	VERSION = "0.9.1"
 	// LAYER contains IRChuu~ version in an integer (for comparison with
 	// HQ server's last version).
 	LAYER = 14
