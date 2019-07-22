@@ -21,7 +21,7 @@ import (
 )
 
 // Launch starts the IRC bot and waits for messages.
-func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay, db *sql.DB) {
+func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay) {
 	defer wg.Done()
 
 	startTime := time.Now()
@@ -80,9 +80,7 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay, db *sql.DB) {
 		if event.Arguments[0] == c.Channel {
 			f := formatMessage(event.Nick, event.Message(), "NOTICE")
 			r.IRCh <- f
-			if db != nil {
-				go irchuubase.Log(f, db, logger)
-			}
+			go irchuubase.Log(f, logger)
 		} else {
 			logger.Printf("Notice from %v: %v\n",
 				event.Nick, event.Message())
@@ -194,9 +192,7 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay, db *sql.DB) {
 				if c.RelayJoinsParts {
 					r.IRCh <- f
 				}
-				if db != nil {
-					go irchuubase.Log(f, db, logger)
-				}
+				go irchuubase.Log(f, logger)
 				names[event.Nick] = 1
 			}
 		}
@@ -257,17 +253,15 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay, db *sql.DB) {
 		if event.Arguments[0] == c.Channel {
 			f := formatMessage(event.Nick, event.Message(), "")
 			r.IRCh <- f
-			if db != nil {
-				go irchuubase.Log(f, db, logger)
-			}
+			go irchuubase.Log(f, logger)
 			if strings.HasPrefix(event.Message(), c.Nick) {
-				processCmd(event, irchuu, c, r, db, &names)
+				processCmd(event, irchuu, c, r, &names)
 			}
 		} else {
 			logger.Printf("Message from %v: %v\n",
 				event.Nick, event.Message())
 			if names[event.Nick] != 0 {
-				processPMCmd(event, irchuu, c, r, db)
+				processPMCmd(event, irchuu, c, r)
 			} else {
 				noticeOrMsg(irchuu, c.SendNotices, event.Nick,
 					"I work only for my channel members."+
@@ -281,9 +275,7 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay, db *sql.DB) {
 		if event.Arguments[0] == c.Channel {
 			f := formatMessage(event.Nick, event.Message(), "ACTION")
 			r.IRCh <- f
-			if db != nil {
-				go irchuubase.Log(f, db, logger)
-			}
+			go irchuubase.Log(f, logger)
 		} else {
 			logger.Printf("CTCP ACTION from %v: %v\n",
 				event.Nick, event.Message())
@@ -294,9 +286,7 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay, db *sql.DB) {
 		if event.Arguments[0] == c.Channel {
 			f := formatMessage(event.Nick, event.Arguments[1], "KICK")
 			r.IRCh <- f // TODO: kick reasons are not saved
-			if db != nil {
-				go irchuubase.Log(f, db, logger)
-			}
+			go irchuubase.Log(f, logger)
 			names[event.Arguments[1]] = 0
 			if event.Arguments[1] == irchuu.GetNick() {
 				stopMsg := relay.Message{Extra: map[string]string{"break": "true"}}
@@ -313,9 +303,7 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay, db *sql.DB) {
 	irchuu.AddCallback("NICK", func(event *irc.Event) {
 		f := formatMessage(event.Nick, event.Arguments[0], "NICK")
 		r.IRCh <- f
-		if db != nil {
-			go irchuubase.Log(f, db, logger)
-		}
+		go irchuubase.Log(f, logger)
 		names[event.Arguments[0]] = names[event.Nick]
 		names[event.Nick] = 0
 	})
@@ -330,9 +318,7 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay, db *sql.DB) {
 			if c.RelayJoinsParts {
 				r.IRCh <- f
 			}
-			if db != nil {
-				go irchuubase.Log(f, db, logger)
-			}
+			go irchuubase.Log(f, logger)
 			names[event.Nick] = 0
 		}
 	})
@@ -346,9 +332,7 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay, db *sql.DB) {
 		if c.RelayJoinsParts {
 			r.IRCh <- f
 		}
-		if db != nil {
-			go irchuubase.Log(f, db, logger)
-		}
+		go irchuubase.Log(f, logger)
 		names[event.Nick] = 0
 	})
 
@@ -358,9 +342,7 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay, db *sql.DB) {
 			if c.RelayModes {
 				r.IRCh <- f
 			}
-			if db != nil {
-				go irchuubase.Log(f, db, logger)
-			}
+			go irchuubase.Log(f, logger)
 			if len(event.Arguments) > 2 {
 				for k, o := range parseMode(event) {
 					names[k] = o
@@ -373,9 +355,7 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay, db *sql.DB) {
 		if event.Arguments[0] == c.Channel {
 			f := formatMessage(event.Nick, event.Arguments[1], "TOPIC")
 			r.IRCh <- f
-			if db != nil {
-				go irchuubase.Log(f, db, logger)
-			}
+			go irchuubase.Log(f, logger)
 		}
 	})
 
@@ -712,7 +692,7 @@ func formatSpecialIRCMessages(message relay.Message, c *config.Irc) (messages []
 }
 
 // processCmd executes commands.
-func processCmd(event *irc.Event, irchuu *irc.Connection, c *config.Irc, r *relay.Relay, db *sql.DB, names *map[string]int) {
+func processCmd(event *irc.Event, irchuu *irc.Connection, c *config.Irc, r *relay.Relay, names *map[string]int) {
 	cmd := strings.SplitN(event.Message(), " ", 3)
 	if len(cmd) < 2 {
 		return
@@ -730,7 +710,7 @@ func processCmd(event *irc.Event, irchuu *irc.Connection, c *config.Irc, r *rela
 		if c.AllowStickers {
 			texts[7] = c.Nick + " \x02sticker [id]\x0f — send a sticker"
 		}
-		if db != nil {
+		if irchuubase.IsAvailable() {
 			texts[4] = c.Nick +
 				" \x02hist [n]\x0f — get [n] last messages in PM"
 			if c.Moderation {
@@ -750,17 +730,17 @@ func processCmd(event *irc.Event, irchuu *irc.Connection, c *config.Irc, r *rela
 			}
 		}
 	case "hist":
-		if db != nil {
+		if irchuubase.IsAvailable() {
 			var n int
 			if len(cmd) > 2 && cmd[2] != "" {
 				n, _ = strconv.Atoi(cmd[2])
 			}
-			go sendHistory(db, event.Nick, irchuu, c, n)
+			go sendHistory(event.Nick, irchuu, c, n)
 		}
 	case "kick":
-		if c.Moderation && len(cmd) > 2 {
+		if c.Moderation && irchuubase.IsAvailable() && len(cmd) > 2 {
 			if (*names)[event.Nick] >= c.KickPermission {
-				modifyUser(db, irchuu, r, cmd[2], c.Channel, false)
+				modifyUser(irchuu, r, cmd[2], c.Channel, false)
 			} else {
 				irchuu.Privmsg(c.Channel, "Insufficient permission.")
 			}
@@ -775,9 +755,9 @@ func processCmd(event *irc.Event, irchuu *irc.Connection, c *config.Irc, r *rela
 	case "count":
 		r.IRCServiceCh <- relay.ServiceMessage{"count", nil}
 	case "unban":
-		if c.Moderation && len(cmd) > 2 {
+		if c.Moderation && irchuubase.IsAvailable() && len(cmd) > 2 {
 			if (*names)[event.Nick] >= c.KickPermission {
-				modifyUser(db, irchuu, r, cmd[2], c.Channel, true)
+				modifyUser(irchuu, r, cmd[2], c.Channel, true)
 			} else {
 				irchuu.Privmsg(c.Channel, "Insufficient permission.")
 			}
@@ -787,8 +767,8 @@ func processCmd(event *irc.Event, irchuu *irc.Connection, c *config.Irc, r *rela
 
 // modifyUser kicks a Telegram user from the groupchat or unbans them. Mode true
 // unbans, mode false kicks.
-func modifyUser(db *sql.DB, irchuu *irc.Connection, r *relay.Relay, name, channel string, mode bool) {
-	id, foundName, err := irchuubase.FindUser(name, db)
+func modifyUser(irchuu *irc.Connection, r *relay.Relay, name, channel string, mode bool) {
+	id, foundName, err := irchuubase.FindUser(name)
 	if err == sql.ErrNoRows {
 		irchuu.Privmsg(channel, "No such user.")
 		return
@@ -804,7 +784,7 @@ func modifyUser(db *sql.DB, irchuu *irc.Connection, r *relay.Relay, name, channe
 }
 
 // processPMCmd executes commands sent in private.
-func processPMCmd(event *irc.Event, irchuu *irc.Connection, c *config.Irc, r *relay.Relay, db *sql.DB) {
+func processPMCmd(event *irc.Event, irchuu *irc.Connection, c *config.Irc, r *relay.Relay) {
 	cmd := strings.Split(event.Message(), " ")
 	if len(cmd) < 1 {
 		return
@@ -817,7 +797,7 @@ func processPMCmd(event *irc.Event, irchuu *irc.Connection, c *config.Irc, r *re
 		texts[3] = "\x02/ctcp " + irchuu.GetNick() +
 			" version\x0f — get version info"
 		texts[4] = "More commands are available in the channel."
-		if db != nil {
+		if irchuubase.IsAvailable() {
 			texts[2] = "\x02hist [n]\x0f — get [n] last messages"
 		}
 		for _, text := range texts {
@@ -829,12 +809,12 @@ func processPMCmd(event *irc.Event, irchuu *irc.Connection, c *config.Irc, r *re
 			}
 		}
 	case "hist":
-		if db != nil {
+		if irchuubase.IsAvailable() {
 			var n int
 			if len(cmd) > 1 && cmd[1] != "" {
 				n, _ = strconv.Atoi(cmd[1])
 			}
-			go sendHistory(db, event.Nick, irchuu, c, n)
+			go sendHistory(event.Nick, irchuu, c, n)
 		}
 	default:
 		noticeOrMsg(irchuu, c.SendNotices, event.Nick, "No such command. Enter"+
@@ -843,12 +823,12 @@ func processPMCmd(event *irc.Event, irchuu *irc.Connection, c *config.Irc, r *re
 }
 
 // sendHistory retrieves the message history from DB and sends it to <nick>.
-func sendHistory(db *sql.DB, nick string, irchuu *irc.Connection, c *config.Irc, n int) {
+func sendHistory(nick string, irchuu *irc.Connection, c *config.Irc, n int) {
 	if n == 0 || n > c.MaxHist {
 		n = c.MaxHist
 	}
 	var msgs []relay.Message
-	msgs, err := irchuubase.GetMessages(db, n)
+	msgs, err := irchuubase.GetMessages(n)
 	if err != nil {
 		irchuu.Privmsgf(c.Channel, "%v: an error occurred during your request.",
 			nick)

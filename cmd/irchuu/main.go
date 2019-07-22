@@ -1,7 +1,6 @@
 package main
 
 import (
-	"database/sql"
 	"flag"
 	"fmt"
 	"log"
@@ -44,10 +43,8 @@ func main() {
 
 	r := relay.NewRelay()
 
-	var db *sql.DB
-
 	if irchuuConf.DBURI != "" {
-		db = irchuubase.Init(irchuuConf.DBURI)
+		irchuubase.Init(irchuuConf.DBURI)
 	}
 
 	tg.DataDir = dataDir
@@ -64,8 +61,8 @@ func main() {
 
 	var wg sync.WaitGroup
 	wg.Add(2)
-	go irchuu.Launch(irc, &wg, r, db)
-	go telegram.Launch(tg, &wg, r, db)
+	go irchuu.Launch(irc, &wg, r)
+	go telegram.Launch(tg, &wg, r)
 	wg.Wait()
 }
 

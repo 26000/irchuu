@@ -2,7 +2,6 @@
 package telegram
 
 import (
-	"database/sql"
 	"fmt"
 	"html"
 	"io"
@@ -27,7 +26,7 @@ import (
 )
 
 // Launch launches the Telegram bot and receives updates in an endless loop.
-func Launch(c *config.Telegram, wg *sync.WaitGroup, r *relay.Relay, db *sql.DB) {
+func Launch(c *config.Telegram, wg *sync.WaitGroup, r *relay.Relay) {
 	defer wg.Done()
 	logger := log.New(os.Stdout, " TG ", log.LstdFlags)
 	bot, err := tgbotapi.NewBotAPI(c.Token)
@@ -52,7 +51,7 @@ func Launch(c *config.Telegram, wg *sync.WaitGroup, r *relay.Relay, db *sql.DB) 
 		}
 
 		if update.Message.Chat.Type != "private" {
-			processChatMessage(bot, c, update.Message, logger, r, db)
+			processChatMessage(bot, c, update.Message, logger, r)
 		} else {
 			processPM(bot, c, update.Message, logger)
 		}
@@ -61,7 +60,7 @@ func Launch(c *config.Telegram, wg *sync.WaitGroup, r *relay.Relay, db *sql.DB) 
 
 // processChatMessage processes messages from public groups, sending them to
 // IRC and Log channels.
-func processChatMessage(bot *tgbotapi.BotAPI, c *config.Telegram, message *tgbotapi.Message, logger *log.Logger, r *relay.Relay, db *sql.DB) {
+func processChatMessage(bot *tgbotapi.BotAPI, c *config.Telegram, message *tgbotapi.Message, logger *log.Logger, r *relay.Relay) {
 	if message.Chat.ID != c.Group {
 		msg := tgbotapi.NewMessage(message.Chat.ID,
 			fmt.Sprintf("I'm not configured to work in this group (group id: %d).",
@@ -104,9 +103,7 @@ func processChatMessage(bot *tgbotapi.BotAPI, c *config.Telegram, message *tgbot
 			}
 		}
 		r.TeleCh <- f
-		if db != nil {
-			go irchuubase.Log(f, db, logger)
-		}
+		go irchuubase.Log(f, logger)
 		if cmd := message.Command(); cmd != "" {
 			processCmd(bot, c, message, cmd, r)
 		}

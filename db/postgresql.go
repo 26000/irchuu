@@ -12,8 +12,16 @@ import (
 	_ "github.com/lib/pq"
 )
 
+var (
+	db *sql.DB
+)
+
 // Log inserts a message into the DB.
-func Log(msg relay.Message, db *sql.DB, logger *log.Logger) {
+func Log(msg relay.Message, logger *log.Logger) {
+	if db == nil {
+		return
+	}
+
 	extraString, err := json.Marshal(msg.Extra)
 	if err != nil {
 		logger.Printf("An error occurred while marshalling the extra data: %v.",
@@ -55,19 +63,20 @@ func Log(msg relay.Message, db *sql.DB, logger *log.Logger) {
 }
 
 // Init creates tables needed for IRChuu and returns true on success.
-func Init(dbURI string) *sql.DB {
+func Init(dbURI string) {
 	logger := log.New(os.Stdout, " DB ", log.LstdFlags)
 
-	db, err := sql.Open("postgres", dbURI)
+	var err error
+	db, err = sql.Open("postgres", dbURI)
 	if !handleErrors(err, logger) {
-		return nil
+		return
 	}
 	rows1, err := db.Query("CREATE TABLE IF NOT EXISTS tg_users" +
 		" (id INT PRIMARY KEY NOT NULL, nick VARCHAR(32)," +
 		" first_name TEXT, last_name TEXT, last_active TIMESTAMP" +
 		" WITH TIME ZONE);")
 	if !handleErrors(err, logger) {
-		return nil
+		return
 	}
 	defer rows1.Close()
 	rows2, err := db.Query("CREATE TABLE IF NOT EXISTS messages" +
@@ -75,15 +84,15 @@ func Init(dbURI string) *sql.DB {
 		" source BOOLEAN, nick TEXT, \"text\" TEXT, from_id INT," +
 		" msg_id INT, extra JSONB);")
 	if !handleErrors(err, logger) {
-		return nil
+		return
 	}
 	defer rows2.Close()
 	logger.Println("Successfully initialized")
-	return db
+	return
 }
 
 // GetMessages gets n last messages and returns them in a slice of relay.Message.
-func GetMessages(db *sql.DB, n int) ([]relay.Message, error) {
+func GetMessages(n int) ([]relay.Message, error) {
 	msgs := make([]relay.Message, 0, n)
 	rows, err := db.Query(`SELECT date, source, coalesce(messages.nick,
 tg_users.nick, ''), text, coalesce(msg_id, 0), coalesce(from_id, 0),
@@ -133,10 +142,15 @@ func handleErrors(err error, logger *log.Logger) bool {
 	return true
 }
 
-func FindUser(name string, db *sql.DB) (id int, foundName string, err error) {
+func FindUser(name string) (id int, foundName string, err error) {
 	err = db.QueryRow("SELECT id, coalesce(nick, first_name || ' ' || last_name)"+
 		"  FROM tg_users WHERE nick LIKE $1 || '%'"+
 		" OR first_name || ' ' || last_name LIKE $1 || '%' "+
 		" ORDER BY last_active DESC LIMIT 1", name).Scan(&id, &foundName)
 	return
+}
+
+// IsAvailable checks whether database functionality is available.
+func IsAvailable() bool {
+	return db != nil
 }
