@@ -20,6 +20,8 @@ import (
 	"github.com/thoj/go-ircevent"
 )
 
+var ircConn *irc.Connection
+
 // Launch starts the IRC bot and waits for messages.
 func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay) {
 	defer wg.Done()
@@ -27,9 +29,9 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay) {
 	startTime := time.Now()
 
 	logger := log.New(os.Stdout, "IRC ", log.LstdFlags)
-	irchuu := irc.IRC(c.Nick, "IRChuu")
-	irchuu.UseTLS = c.SSL
-	irchuu.Password = c.ServerPassword
+	ircConn = irc.IRC(c.Nick, "IRChuu")
+	ircConn.UseTLS = c.SSL
+	ircConn.Password = c.ServerPassword
 
 	// 0 — not on channel
 	// 1 — normal
@@ -43,24 +45,24 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay) {
 	nameQueryStarted := false
 
 	if c.SASL {
-		irchuu.UseSASL = true
-		irchuu.SASLLogin = c.Nick
-		irchuu.SASLPassword = c.Password
+		ircConn.UseSASL = true
+		ircConn.SASLLogin = c.Nick
+		ircConn.SASLPassword = c.Password
 	}
 
-	irchuu.Debug = c.Debug
-	irchuu.Log = logger
-	irchuu.QuitMessage = "IRChuu!bye"
-	irchuu.Version = fmt.Sprintf("IRChuu! v%v (https://github.com/26000/irchuu), based on %v", config.VERSION, irc.VERSION)
+	ircConn.Debug = c.Debug
+	ircConn.Log = logger
+	ircConn.QuitMessage = "IRChuu!bye"
+	ircConn.Version = fmt.Sprintf("IRChuu! v%v (https://github.com/26000/irchuu), based on %v", config.VERSION, irc.VERSION)
 
 	/* START CALLBACKS */
-	irchuu.AddCallback("CTCP_VERSION", func(event *irc.Event) {
+	ircConn.AddCallback("CTCP_VERSION", func(event *irc.Event) {
 		logger.Printf("CTCP VERSION from %v\n", event.Nick)
 	})
 
-	irchuu.AddCallback("CTCP", func(event *irc.Event) {
+	ircConn.AddCallback("CTCP", func(event *irc.Event) {
 		if event.Arguments[1] == "UPTIME" {
-			irchuu.SendRawf("NOTICE %s :\x01UPTIME %s\x01", event.Nick,
+			ircConn.SendRawf("NOTICE %s :\x01UPTIME %s\x01", event.Nick,
 				time.Since(startTime))
 			logger.Printf("CTCP %v from %v\n", event.Arguments[1],
 				event.Nick)
@@ -70,13 +72,13 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay) {
 		}
 	})
 
-	irchuu.RemoveCallback("CTCP_CLIENTINFO", 0)
-	irchuu.AddCallback("CTCP_CLIENTINFO", func(event *irc.Event) {
-		irchuu.SendRawf("NOTICE %s :\x01CLIENTINFO PING VERSION TIME UPTIME USERINFO CLIENTINFO\x01",
+	ircConn.RemoveCallback("CTCP_CLIENTINFO", 0)
+	ircConn.AddCallback("CTCP_CLIENTINFO", func(event *irc.Event) {
+		ircConn.SendRawf("NOTICE %s :\x01CLIENTINFO PING VERSION TIME UPTIME USERINFO CLIENTINFO\x01",
 			event.Nick)
 	})
 
-	irchuu.AddCallback("NOTICE", func(event *irc.Event) {
+	ircConn.AddCallback("NOTICE", func(event *irc.Event) {
 		if event.Arguments[0] == c.Channel {
 			f := formatMessage(event.Nick, event.Message(), "NOTICE")
 			r.IRCh <- f
@@ -89,64 +91,64 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay) {
 	})
 
 	// SASL Authentication status
-	irchuu.AddCallback("903", func(event *irc.Event) {
+	ircConn.AddCallback("903", func(event *irc.Event) {
 		logger.Printf("%v\n", event.Arguments[1])
 	})
 
 	// Errors
-	irchuu.AddCallback("461", func(event *irc.Event) {
+	ircConn.AddCallback("461", func(event *irc.Event) {
 		logger.Printf("Error: ERR_NEEDMOREPARAMS\n")
 	})
 
-	irchuu.AddCallback("433", func(event *irc.Event) {
+	ircConn.AddCallback("433", func(event *irc.Event) {
 		logger.Printf("Nickname already in use, changed to %v\n",
-			irchuu.GetNick())
-		irchuu.Join(fmt.Sprintf("%v %v", c.Channel, c.ChanPassword))
+			ircConn.GetNick())
+		ircConn.Join(fmt.Sprintf("%v %v", c.Channel, c.ChanPassword))
 	})
 
-	irchuu.AddCallback("473", func(event *irc.Event) {
+	ircConn.AddCallback("473", func(event *irc.Event) {
 		logger.Printf("The channel is invite-only, please invite me\n")
 	})
 
-	irchuu.AddCallback("471", func(event *irc.Event) {
+	ircConn.AddCallback("471", func(event *irc.Event) {
 		logger.Printf("The channel is full\n")
 	})
 
-	irchuu.AddCallback("403", func(event *irc.Event) {
+	ircConn.AddCallback("403", func(event *irc.Event) {
 		logger.Printf("The channel doesn't exist\n")
 	})
 
-	irchuu.AddCallback("474", func(event *irc.Event) {
-		logger.Printf("%v is banned on the channel\n", irchuu.GetNick())
+	ircConn.AddCallback("474", func(event *irc.Event) {
+		logger.Printf("%v is banned on the channel\n", ircConn.GetNick())
 	})
 
-	irchuu.AddCallback("475", func(event *irc.Event) {
+	ircConn.AddCallback("475", func(event *irc.Event) {
 		logger.Printf("The channel password is incorrect\n")
 	})
 
-	irchuu.AddCallback("476", func(event *irc.Event) {
+	ircConn.AddCallback("476", func(event *irc.Event) {
 		logger.Printf("Error: ERR_BADCHANMASK\n")
 	})
 
-	irchuu.AddCallback("405", func(event *irc.Event) {
+	ircConn.AddCallback("405", func(event *irc.Event) {
 		logger.Printf("Error: ERR_TOOMANYCHANNELS\n")
 	})
 
 	// You are not channel operator
-	irchuu.AddCallback("482", func(event *irc.Event) {
+	ircConn.AddCallback("482", func(event *irc.Event) {
 		if event.Arguments[1] == c.Channel {
 			r.IRCServiceCh <- relay.ServiceMessage{"announce", []string{"I need to be an operator in IRC for that action."}}
 		}
 	})
 
-	irchuu.AddCallback("INVITE", func(event *irc.Event) {
+	ircConn.AddCallback("INVITE", func(event *irc.Event) {
 		logger.Printf("Invited to %v by %v\n", event.Arguments[1], event.Nick)
 		if c.Channel == event.Arguments[1] {
-			irchuu.Join(fmt.Sprintf("%v %v", c.Channel, c.ChanPassword))
+			ircConn.Join(fmt.Sprintf("%v %v", c.Channel, c.ChanPassword))
 		}
 	})
 
-	irchuu.AddCallback("341", func(event *irc.Event) {
+	ircConn.AddCallback("341", func(event *irc.Event) {
 		s := relay.ServiceMessage{"announce",
 			[]string{fmt.Sprintf("Invited %v to %v.", event.Arguments[1],
 				event.Arguments[2])}}
@@ -156,7 +158,7 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay) {
 	})
 
 	// TODO: add bold for these messages
-	irchuu.AddCallback("443", func(event *irc.Event) {
+	ircConn.AddCallback("443", func(event *irc.Event) {
 		s := relay.ServiceMessage{"announce",
 			[]string{fmt.Sprintf("User %v is already on channel.",
 				event.Arguments[1])}}
@@ -165,7 +167,7 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay) {
 	})
 
 	/*
-		irchuu.AddCallback("401", func(event *irc.Event) {
+		ircConn.AddCallback("401", func(event *irc.Event) {
 			s := relay.ServiceMessage{"announce",
 				[]string{fmt.Sprintf("No such nick: %v.", event.Arguments[1])}}
 
@@ -175,14 +177,14 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay) {
 	*/
 
 	// On joined...
-	irchuu.AddCallback("JOIN", func(event *irc.Event) {
-		if event.Nick == irchuu.GetNick() {
+	ircConn.AddCallback("JOIN", func(event *irc.Event) {
+		if event.Nick == ircConn.GetNick() {
 			logger.Printf("Joined %v\n", event.Arguments[0])
 			if event.Arguments[0] == c.Channel {
-				go relayMessagesToIRC(r, c, irchuu)
-				go listenService(r, c, irchuu, &names)
+				go relayMessagesToIRC(r, c)
+				go listenService(r, c, &names)
 				if !nameQueryStarted {
-					go updateNames(irchuu, c)
+					go updateNames(c)
 					nameQueryStarted = true
 				}
 			}
@@ -200,7 +202,7 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay) {
 
 	if c.AnnounceTopic {
 		// Topic
-		irchuu.AddCallback("332", func(event *irc.Event) {
+		ircConn.AddCallback("332", func(event *irc.Event) {
 			if event.Arguments[1] == c.Channel {
 				r.IRCServiceCh <- relay.ServiceMessage{"announce",
 					[]string{fmt.Sprintf("The topic for %v is %v.",
@@ -209,7 +211,7 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay) {
 		})
 
 		// No topic
-		irchuu.AddCallback("331", func(event *irc.Event) {
+		ircConn.AddCallback("331", func(event *irc.Event) {
 			if event.Arguments[1] == c.Channel {
 				r.IRCServiceCh <- relay.ServiceMessage{"announce",
 					[]string{"No topic is set."}}
@@ -218,7 +220,7 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay) {
 	}
 
 	// Names
-	irchuu.AddCallback("353", func(event *irc.Event) {
+	ircConn.AddCallback("353", func(event *irc.Event) {
 		if event.Arguments[2] == c.Channel {
 			for _, name := range strings.Split(event.Arguments[3], " ") {
 				if len(name) == 0 {
@@ -243,27 +245,27 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay) {
 	})
 
 	// End of names
-	irchuu.AddCallback("366", func(event *irc.Event) {
+	ircConn.AddCallback("366", func(event *irc.Event) {
 		if event.Arguments[1] == c.Channel {
 			names = tempNames
 		}
 	})
 
-	irchuu.AddCallback("PRIVMSG", func(event *irc.Event) {
+	ircConn.AddCallback("PRIVMSG", func(event *irc.Event) {
 		if event.Arguments[0] == c.Channel {
 			f := formatMessage(event.Nick, event.Message(), "")
 			r.IRCh <- f
 			go irchuubase.Log(f, logger)
 			if strings.HasPrefix(event.Message(), c.Nick) {
-				processCmd(event, irchuu, c, r, &names)
+				processCmd(event, c, r, &names)
 			}
 		} else {
 			logger.Printf("Message from %v: %v\n",
 				event.Nick, event.Message())
 			if names[event.Nick] != 0 {
-				processPMCmd(event, irchuu, c, r)
+				processPMCmd(event, c, r)
 			} else {
-				noticeOrMsg(irchuu, c.SendNotices, event.Nick,
+				noticeOrMsg(c.SendNotices, event.Nick,
 					"I work only for my channel members."+
 						" https://github.com/26000/irchuu"+
 						" for more info.")
@@ -271,7 +273,7 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay) {
 		}
 	})
 
-	irchuu.AddCallback("CTCP_ACTION", func(event *irc.Event) {
+	ircConn.AddCallback("CTCP_ACTION", func(event *irc.Event) {
 		if event.Arguments[0] == c.Channel {
 			f := formatMessage(event.Nick, event.Message(), "ACTION")
 			r.IRCh <- f
@@ -282,25 +284,25 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay) {
 		}
 	})
 
-	irchuu.AddCallback("KICK", func(event *irc.Event) {
+	ircConn.AddCallback("KICK", func(event *irc.Event) {
 		if event.Arguments[0] == c.Channel {
 			f := formatMessage(event.Nick, event.Arguments[1], "KICK")
 			r.IRCh <- f // TODO: kick reasons are not saved
 			go irchuubase.Log(f, logger)
 			names[event.Arguments[1]] = 0
-			if event.Arguments[1] == irchuu.GetNick() {
+			if event.Arguments[1] == ircConn.GetNick() {
 				stopMsg := relay.Message{Extra: map[string]string{"break": "true"}}
 				stopCmd := relay.ServiceMessage{Command: "break"}
 				r.TeleCh <- stopMsg
 				r.TeleServiceCh <- stopCmd
 				if c.KickRejoin {
-					irchuu.Join(fmt.Sprintf("%v %v", c.Channel, c.ChanPassword))
+					ircConn.Join(fmt.Sprintf("%v %v", c.Channel, c.ChanPassword))
 				}
 			}
 		}
 	})
 
-	irchuu.AddCallback("NICK", func(event *irc.Event) {
+	ircConn.AddCallback("NICK", func(event *irc.Event) {
 		f := formatMessage(event.Nick, event.Arguments[0], "NICK")
 		r.IRCh <- f
 		go irchuubase.Log(f, logger)
@@ -308,7 +310,7 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay) {
 		names[event.Nick] = 0
 	})
 
-	irchuu.AddCallback("PART", func(event *irc.Event) {
+	ircConn.AddCallback("PART", func(event *irc.Event) {
 		if event.Arguments[0] == c.Channel {
 			var reason string
 			if len(event.Arguments) > 1 {
@@ -323,7 +325,7 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay) {
 		}
 	})
 
-	irchuu.AddCallback("QUIT", func(event *irc.Event) {
+	ircConn.AddCallback("QUIT", func(event *irc.Event) {
 		var reason string
 		if len(event.Arguments) > 0 {
 			reason = event.Arguments[0]
@@ -336,7 +338,7 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay) {
 		names[event.Nick] = 0
 	})
 
-	irchuu.AddCallback("MODE", func(event *irc.Event) {
+	ircConn.AddCallback("MODE", func(event *irc.Event) {
 		if event.Arguments[0] == c.Channel {
 			f := formatMessage(event.Nick, strings.Join(event.Arguments, " "), "MODE")
 			if c.RelayModes {
@@ -351,7 +353,7 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay) {
 		}
 	})
 
-	irchuu.AddCallback("TOPIC", func(event *irc.Event) {
+	ircConn.AddCallback("TOPIC", func(event *irc.Event) {
 		if event.Arguments[0] == c.Channel {
 			f := formatMessage(event.Nick, event.Arguments[1], "TOPIC")
 			r.IRCh <- f
@@ -360,39 +362,39 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay) {
 	})
 
 	// On connected...
-	irchuu.AddCallback("001", func(event *irc.Event) {
+	ircConn.AddCallback("001", func(event *irc.Event) {
 		if !c.SASL && c.Password != "" {
 			logger.Println("Trying to authenticate via NickServ")
-			irchuu.Privmsgf("NickServ", "IDENTIFY %v", c.Password)
+			ircConn.Privmsgf("NickServ", "IDENTIFY %v", c.Password)
 		}
 
-		irchuu.Join(fmt.Sprintf("%v %v", c.Channel, c.ChanPassword))
+		ircConn.Join(fmt.Sprintf("%v %v", c.Channel, c.ChanPassword))
 	})
 	/* CALLBACKS END */
 
-	err := irchuu.Connect(fmt.Sprintf("%v:%d", c.Server, c.Port))
+	err := ircConn.Connect(fmt.Sprintf("%v:%d", c.Server, c.Port))
 	if err != nil {
 		logger.Fatalf("Cannot connect: %v\n", err)
 	}
 
-	irchuu.Loop()
+	ircConn.Loop()
 }
 
 // noticeOrMsg sends NOTICE if the second arg is true or PRIVMSG else.
-func noticeOrMsg(irchuu *irc.Connection, notice bool, target, message string) {
+func noticeOrMsg(notice bool, target, message string) {
 	if notice {
-		irchuu.Notice(target, message)
+		ircConn.Notice(target, message)
 	} else {
-		irchuu.Privmsg(target, message)
+		ircConn.Privmsg(target, message)
 	}
 }
 
 // noticeOrMsgf sends formatted NOTICE or PRIVMSG.
-func noticeOrMsgf(irchuu *irc.Connection, notice bool, target, format string, a ...interface{}) {
+func noticeOrMsgf(notice bool, target, format string, a ...interface{}) {
 	if notice {
-		irchuu.Noticef(target, format, a...)
+		ircConn.Noticef(target, format, a...)
 	} else {
-		irchuu.Privmsgf(target, format, a...)
+		ircConn.Privmsgf(target, format, a...)
 	}
 }
 
@@ -466,16 +468,16 @@ func parseMode(event *irc.Event) map[string]int {
 }
 
 // updateNames tries to update the name list occasionally.
-func updateNames(irchuu *irc.Connection, c *config.Irc) {
+func updateNames(c *config.Irc) {
 	for {
 		time.Sleep(time.Second * time.Duration(c.NamesUpdateInterval))
-		irchuu.SendRawf("NAMES %v", c.Channel)
+		ircConn.SendRawf("NAMES %v", c.Channel)
 	}
 }
 
 // relayMessagesToIRC listens to the Telegram channel and sends every message
 // into IRC.
-func relayMessagesToIRC(r *relay.Relay, c *config.Irc, irchuu *irc.Connection) {
+func relayMessagesToIRC(r *relay.Relay, c *config.Irc) {
 	for message := range r.TeleCh {
 		if message.Extra["break"] == "true" {
 			break
@@ -487,7 +489,7 @@ func relayMessagesToIRC(r *relay.Relay, c *config.Irc, irchuu *irc.Connection) {
 			messages = formatSpecialIRCMessages(message, c)
 		}
 		for _, m := range messages {
-			irchuu.Privmsg(c.Channel, m)
+			ircConn.Privmsg(c.Channel, m)
 			if c.FloodDelay != 0 {
 				time.Sleep(time.Duration(c.FloodDelay) * time.Millisecond)
 			}
@@ -496,7 +498,7 @@ func relayMessagesToIRC(r *relay.Relay, c *config.Irc, irchuu *irc.Connection) {
 }
 
 // listenService listens to service messages and executes them.
-func listenService(r *relay.Relay, c *config.Irc, irchuu *irc.Connection, names *map[string]int) {
+func listenService(r *relay.Relay, c *config.Irc, names *map[string]int) {
 	for f := range r.TeleServiceCh {
 		switch f.Command {
 		case "break":
@@ -505,13 +507,13 @@ func listenService(r *relay.Relay, c *config.Irc, irchuu *irc.Connection, names 
 			fallthrough
 		case "bot":
 			if len(f.Arguments) != 0 {
-				irchuu.Privmsg(c.Channel, f.Arguments[0])
+				ircConn.Privmsg(c.Channel, f.Arguments[0])
 			}
 		case "action":
-			irchuu.Action(c.Channel, f.Arguments[0])
+			ircConn.Action(c.Channel, f.Arguments[0])
 		case "kick":
-			if len(f.Arguments) == 2 && f.Arguments[0] != irchuu.GetNick() {
-				irchuu.Kick(f.Arguments[0], c.Channel,
+			if len(f.Arguments) == 2 && f.Arguments[0] != ircConn.GetNick() {
+				ircConn.Kick(f.Arguments[0], c.Channel,
 					"by "+f.Arguments[1])
 			}
 		case "ops":
@@ -524,12 +526,12 @@ func listenService(r *relay.Relay, c *config.Irc, irchuu *irc.Connection, names 
 			r.IRCServiceCh <- relay.ServiceMessage{"announce", []string{ops}}
 		case "invite":
 			if len(f.Arguments) != 0 {
-				irchuu.SendRawf("INVITE %v %v", f.Arguments[0], c.Channel)
+				ircConn.SendRawf("INVITE %v %v", f.Arguments[0], c.Channel)
 			}
 		case "topic":
-			irchuu.SendRawf("TOPIC %v", c.Channel)
+			ircConn.SendRawf("TOPIC %v", c.Channel)
 		case "shutdown":
-			irchuu.Quit()
+			ircConn.Quit()
 			time.Sleep(time.Second)
 			os.Exit(0)
 		}
@@ -692,7 +694,7 @@ func formatSpecialIRCMessages(message relay.Message, c *config.Irc) (messages []
 }
 
 // processCmd executes commands.
-func processCmd(event *irc.Event, irchuu *irc.Connection, c *config.Irc, r *relay.Relay, names *map[string]int) {
+func processCmd(event *irc.Event, c *config.Irc, r *relay.Relay, names *map[string]int) {
 	cmd := strings.SplitN(event.Message(), " ", 3)
 	if len(cmd) < 2 {
 		return
@@ -704,7 +706,7 @@ func processCmd(event *irc.Event, irchuu *irc.Connection, c *config.Irc, r *rela
 		texts[1] = c.Nick + " \x02help\x0f — show this help"
 		texts[2] = c.Nick + " \x02ops\x0f — show Telegram group ops"
 		texts[3] = c.Nick + " \x02count\x0f — show Telegram group user count"
-		texts[8] = "\x02/ctcp " + irchuu.GetNick() +
+		texts[8] = "\x02/ctcp " + ircConn.GetNick() +
 			" version\x0f — get version"
 		texts[9] = "Some of these commands are available in PM."
 		if c.AllowStickers {
@@ -723,7 +725,7 @@ func processCmd(event *irc.Event, irchuu *irc.Connection, c *config.Irc, r *rela
 		}
 		for _, text := range texts {
 			if text != "" {
-				irchuu.Privmsg(c.Channel, text)
+				ircConn.Privmsg(c.Channel, text)
 				if c.FloodDelay != 0 {
 					time.Sleep(time.Duration(c.FloodDelay) * time.Millisecond)
 				}
@@ -735,14 +737,14 @@ func processCmd(event *irc.Event, irchuu *irc.Connection, c *config.Irc, r *rela
 			if len(cmd) > 2 && cmd[2] != "" {
 				n, _ = strconv.Atoi(cmd[2])
 			}
-			go sendHistory(event.Nick, irchuu, c, n)
+			go sendHistory(event.Nick, c, n)
 		}
 	case "kick":
 		if c.Moderation && irchuubase.IsAvailable() && len(cmd) > 2 {
 			if (*names)[event.Nick] >= c.KickPermission {
-				modifyUser(irchuu, r, cmd[2], c.Channel, false)
+				modifyUser(r, cmd[2], c.Channel, false)
 			} else {
-				irchuu.Privmsg(c.Channel, "Insufficient permission.")
+				ircConn.Privmsg(c.Channel, "Insufficient permission.")
 			}
 		}
 	case "ops":
@@ -757,9 +759,9 @@ func processCmd(event *irc.Event, irchuu *irc.Connection, c *config.Irc, r *rela
 	case "unban":
 		if c.Moderation && irchuubase.IsAvailable() && len(cmd) > 2 {
 			if (*names)[event.Nick] >= c.KickPermission {
-				modifyUser(irchuu, r, cmd[2], c.Channel, true)
+				modifyUser(r, cmd[2], c.Channel, true)
 			} else {
-				irchuu.Privmsg(c.Channel, "Insufficient permission.")
+				ircConn.Privmsg(c.Channel, "Insufficient permission.")
 			}
 		}
 	}
@@ -767,13 +769,13 @@ func processCmd(event *irc.Event, irchuu *irc.Connection, c *config.Irc, r *rela
 
 // modifyUser kicks a Telegram user from the groupchat or unbans them. Mode true
 // unbans, mode false kicks.
-func modifyUser(irchuu *irc.Connection, r *relay.Relay, name, channel string, mode bool) {
+func modifyUser(r *relay.Relay, name, channel string, mode bool) {
 	id, foundName, err := irchuubase.FindUser(name)
 	if err == sql.ErrNoRows {
-		irchuu.Privmsg(channel, "No such user.")
+		ircConn.Privmsg(channel, "No such user.")
 		return
 	} else if err != nil {
-		irchuu.Privmsg(channel, "An error occurred.")
+		ircConn.Privmsg(channel, "An error occurred.")
 		return
 	}
 	if mode {
@@ -784,7 +786,7 @@ func modifyUser(irchuu *irc.Connection, r *relay.Relay, name, channel string, mo
 }
 
 // processPMCmd executes commands sent in private.
-func processPMCmd(event *irc.Event, irchuu *irc.Connection, c *config.Irc, r *relay.Relay) {
+func processPMCmd(event *irc.Event, c *config.Irc, r *relay.Relay) {
 	cmd := strings.Split(event.Message(), " ")
 	if len(cmd) < 1 {
 		return
@@ -794,7 +796,7 @@ func processPMCmd(event *irc.Event, irchuu *irc.Connection, c *config.Irc, r *re
 		texts := make([]string, 5)
 		texts[0] = "Available commands:"
 		texts[1] = "\x02help\x0f — show this help"
-		texts[3] = "\x02/ctcp " + irchuu.GetNick() +
+		texts[3] = "\x02/ctcp " + ircConn.GetNick() +
 			" version\x0f — get version info"
 		texts[4] = "More commands are available in the channel."
 		if irchuubase.IsAvailable() {
@@ -802,7 +804,7 @@ func processPMCmd(event *irc.Event, irchuu *irc.Connection, c *config.Irc, r *re
 		}
 		for _, text := range texts {
 			if text != "" {
-				noticeOrMsg(irchuu, c.SendNotices, event.Nick, text)
+				noticeOrMsg(c.SendNotices, event.Nick, text)
 				if c.FloodDelay != 0 {
 					time.Sleep(time.Duration(c.FloodDelay) * time.Millisecond)
 				}
@@ -814,23 +816,23 @@ func processPMCmd(event *irc.Event, irchuu *irc.Connection, c *config.Irc, r *re
 			if len(cmd) > 1 && cmd[1] != "" {
 				n, _ = strconv.Atoi(cmd[1])
 			}
-			go sendHistory(event.Nick, irchuu, c, n)
+			go sendHistory(event.Nick, c, n)
 		}
 	default:
-		noticeOrMsg(irchuu, c.SendNotices, event.Nick, "No such command. Enter"+
+		noticeOrMsg(c.SendNotices, event.Nick, "No such command. Enter"+
 			" \x02help\x0f for the list of commands.")
 	}
 }
 
 // sendHistory retrieves the message history from DB and sends it to <nick>.
-func sendHistory(nick string, irchuu *irc.Connection, c *config.Irc, n int) {
+func sendHistory(nick string, c *config.Irc, n int) {
 	if n == 0 || n > c.MaxHist {
 		n = c.MaxHist
 	}
 	var msgs []relay.Message
 	msgs, err := irchuubase.GetMessages(n)
 	if err != nil {
-		irchuu.Privmsgf(c.Channel, "%v: an error occurred during your request.",
+		ircConn.Privmsgf(c.Channel, "%v: an error occurred during your request.",
 			nick)
 		return
 	}
@@ -845,7 +847,7 @@ func sendHistory(nick string, irchuu *irc.Connection, c *config.Irc, n int) {
 			rawMsgs = formatSpecialIRCMessages(msg, c)
 		}
 		for rawMsg := range rawMsgs {
-			noticeOrMsg(irchuu, c.SendNotices, nick, date+rawMsgs[rawMsg])
+			noticeOrMsg(c.SendNotices, nick, date+rawMsgs[rawMsg])
 			if c.FloodDelay != 0 {
 				time.Sleep(time.Duration(c.FloodDelay) * time.Millisecond)
 			}
