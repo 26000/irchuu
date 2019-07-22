@@ -25,11 +25,15 @@ import (
 	tgbotapi "gopkg.in/telegram-bot-api.v4"
 )
 
+var bot *tgbotapi.BotAPI
+
 // Launch launches the Telegram bot and receives updates in an endless loop.
 func Launch(c *config.Telegram, wg *sync.WaitGroup, r *relay.Relay) {
 	defer wg.Done()
 	logger := log.New(os.Stdout, " TG ", log.LstdFlags)
-	bot, err := tgbotapi.NewBotAPI(c.Token)
+
+	var err error
+	bot, err = tgbotapi.NewBotAPI(c.Token)
 	if err != nil {
 		logger.Fatalf("Failed to connect to Telegram: %v\n", err)
 	}
@@ -38,8 +42,8 @@ func Launch(c *config.Telegram, wg *sync.WaitGroup, r *relay.Relay) {
 	u := tgbotapi.NewUpdate(0)
 	u.Timeout = 60
 
-	go relayMessagesToTG(r, c, bot)
-	go listenService(r, c, bot)
+	go relayMessagesToTG(r, c)
+	go listenService(r, c)
 	updates, err := bot.GetUpdatesChan(u)
 
 	for update := range updates {
@@ -51,16 +55,16 @@ func Launch(c *config.Telegram, wg *sync.WaitGroup, r *relay.Relay) {
 		}
 
 		if update.Message.Chat.Type != "private" {
-			processChatMessage(bot, c, update.Message, logger, r)
+			processChatMessage(c, update.Message, logger, r)
 		} else {
-			processPM(bot, c, update.Message, logger)
+			processPM(c, update.Message, logger)
 		}
 	}
 }
 
 // processChatMessage processes messages from public groups, sending them to
 // IRC and Log channels.
-func processChatMessage(bot *tgbotapi.BotAPI, c *config.Telegram, message *tgbotapi.Message, logger *log.Logger, r *relay.Relay) {
+func processChatMessage(c *config.Telegram, message *tgbotapi.Message, logger *log.Logger, r *relay.Relay) {
 	if message.Chat.ID != c.Group {
 		msg := tgbotapi.NewMessage(message.Chat.ID,
 			fmt.Sprintf("I'm not configured to work in this group (group id: %d).",
@@ -93,7 +97,7 @@ func processChatMessage(bot *tgbotapi.BotAPI, c *config.Telegram, message *tgbot
 					f.Extra["url"] = url
 				}
 			case c.DownloadMedia:
-				url, err := download(bot, f.Extra["mediaID"], c)
+				url, err := download(f.Extra["mediaID"], c)
 				if err != nil {
 					logger.Printf("Could not download media %v: %v\n",
 						f.Extra["mediaID"], err)
@@ -105,14 +109,14 @@ func processChatMessage(bot *tgbotapi.BotAPI, c *config.Telegram, message *tgbot
 		r.TeleCh <- f
 		go irchuubase.Log(f, logger)
 		if cmd := message.Command(); cmd != "" {
-			processCmd(bot, c, message, cmd, r)
+			processCmd(c, message, cmd, r)
 		}
 	}
 }
 
 // listenService listens to service messages and executes them.
 // TODO: restructure
-func listenService(r *relay.Relay, c *config.Telegram, bot *tgbotapi.BotAPI) {
+func listenService(r *relay.Relay, c *config.Telegram) {
 	for f := range r.IRCServiceCh {
 		switch f.Command {
 		case "announce":
@@ -179,7 +183,7 @@ func listenService(r *relay.Relay, c *config.Telegram, bot *tgbotapi.BotAPI) {
 						text += " ( " + url + " )"
 					}
 				case c.DownloadMedia:
-					url, err := download(bot, f.Arguments[0], c)
+					url, err := download(f.Arguments[0], c)
 					if err == nil && c.Storage == "server" {
 						text += " ( " + url + " )"
 					}
@@ -232,7 +236,7 @@ func listenService(r *relay.Relay, c *config.Telegram, bot *tgbotapi.BotAPI) {
 }
 
 // processCmd works with commands starting with '/'.
-func processCmd(bot *tgbotapi.BotAPI, c *config.Telegram, message *tgbotapi.Message, cmd string, r *relay.Relay) {
+func processCmd(c *config.Telegram, message *tgbotapi.Message, cmd string, r *relay.Relay) {
 	arg := message.CommandArguments()
 	switch cmd {
 	case "kick":
@@ -306,7 +310,7 @@ func processCmd(bot *tgbotapi.BotAPI, c *config.Telegram, message *tgbotapi.Mess
 
 // processPM replies to private messages from Telegram, sending them info
 // about the bot.
-func processPM(bot *tgbotapi.BotAPI, c *config.Telegram, message *tgbotapi.Message, logger *log.Logger) {
+func processPM(c *config.Telegram, message *tgbotapi.Message, logger *log.Logger) {
 	logger.Printf("Incoming PM from %v: %v\n", message.From.String(),
 		message.Text)
 	msg := tgbotapi.NewMessage(message.Chat.ID,
@@ -318,7 +322,7 @@ func processPM(bot *tgbotapi.BotAPI, c *config.Telegram, message *tgbotapi.Messa
 
 // relayMessagesToTG listens to the channel and sends messages from IRC to
 // Telegram.
-func relayMessagesToTG(r *relay.Relay, c *config.Telegram, bot *tgbotapi.BotAPI) {
+func relayMessagesToTG(r *relay.Relay, c *config.Telegram) {
 	for message := range r.IRCh {
 		m := formatTGMessage(message, c)
 		bot.Send(m)
@@ -542,7 +546,7 @@ func formatMessage(message *tgbotapi.Message, id int, prefix string) relay.Messa
 }
 
 // download gets the media link from Telegram and downloads its contents.
-func download(bot *tgbotapi.BotAPI, id string, c *config.Telegram) (url string, err error) {
+func download(id string, c *config.Telegram) (url string, err error) {
 	file, err := bot.GetFileDirectURL(id)
 	if err != nil {
 		return
