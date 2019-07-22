@@ -115,15 +115,12 @@ serverport = 8080
 baseurl = http://localhost:8080
 
 ## POMF
-# the pomf clone url (the list can be found at
-# https://docs.google.com/spreadsheets/d/1kh1TZdtyX7UlRd55OBxf7DB-JGj2rsfWckI0FPQRYhE)
+# the pomf clone url
 # the following should work with irchuu:
-# - https://mixtape.moe
-# - https://fluntcaps.me ( ;) )
 # - https://p.fuwafuwa.moe
 # - https://cocaine.ninja
 # and many more. But some are retarded and won't.
-pomf = https://mixtape.moe
+pomf = https://p.fuwafuwa.moe
 
 ## KOMF
 # a komf site url, you can set up your own: https://github.com/koto-bank/komf
