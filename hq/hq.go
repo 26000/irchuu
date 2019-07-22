@@ -6,11 +6,12 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"github.com/26000/irchuu/config"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"strconv"
+
+	"github.com/26000/irchuu/config"
 )
 
 // URI of the HQ endpoint.

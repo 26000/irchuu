@@ -4,9 +4,6 @@ package upload
 import (
 	"bytes"
 	"encoding/json"
-	"github.com/26000/irchuu/config"
-	"github.com/26000/irchuu/paths"
-	"gopkg.in/telegram-bot-api.v4"
 	"io"
 	"io/ioutil"
 	"mime/multipart"
@@ -14,6 +11,11 @@ import (
 	"os"
 	"path"
 	"strings"
+
+	"github.com/26000/irchuu/config"
+	"github.com/26000/irchuu/paths"
+
+	tgbotapi "gopkg.in/telegram-bot-api.v4"
 )
 
 // Pomf uploads a Telegram media file to a pomf-like hosting. It doesn't check

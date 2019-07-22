@@ -1,11 +1,12 @@
 package paths
 
 import (
-	"github.com/26000/irchuu/config"
 	"log"
 	"os"
 	"os/user"
 	"path"
+
+	"github.com/26000/irchuu/config"
 )
 
 // GetPaths gets config file and data directory paths.

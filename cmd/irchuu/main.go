@@ -11,12 +11,12 @@ import (
 	"syscall"
 
 	"github.com/26000/irchuu/config"
-	"github.com/26000/irchuu/db"
+	irchuubase "github.com/26000/irchuu/db"
 	"github.com/26000/irchuu/hq"
-	"github.com/26000/irchuu/irc"
+	irchuu "github.com/26000/irchuu/irc"
 	"github.com/26000/irchuu/paths"
 	"github.com/26000/irchuu/relay"
-	"github.com/26000/irchuu/server"
+	mediaserver "github.com/26000/irchuu/server"
 	"github.com/26000/irchuu/telegram"
 )
 

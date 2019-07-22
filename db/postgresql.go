@@ -3,12 +3,13 @@ package irchuubase
 import (
 	"database/sql"
 	"encoding/json"
-	"github.com/26000/irchuu/relay"
-	_ "github.com/lib/pq"
 	"log"
 	"os"
 	"time"
 	"unicode/utf8"
+
+	"github.com/26000/irchuu/relay"
+	_ "github.com/lib/pq"
 )
 
 // Log inserts a message into the DB.

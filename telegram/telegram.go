@@ -4,12 +4,6 @@ package telegram
 import (
 	"database/sql"
 	"fmt"
-	"github.com/26000/irchuu/config"
-	"github.com/26000/irchuu/db"
-	"github.com/26000/irchuu/paths"
-	"github.com/26000/irchuu/relay"
-	"github.com/26000/irchuu/upload"
-	"gopkg.in/telegram-bot-api.v4"
 	"html"
 	"io"
 	"log"
@@ -22,6 +16,14 @@ import (
 	"sync"
 	"time"
 	"unicode/utf16"
+
+	"github.com/26000/irchuu/config"
+	irchuubase "github.com/26000/irchuu/db"
+	"github.com/26000/irchuu/paths"
+	"github.com/26000/irchuu/relay"
+	"github.com/26000/irchuu/upload"
+
+	tgbotapi "gopkg.in/telegram-bot-api.v4"
 )
 
 // Launch launches the Telegram bot and receives updates in an endless loop.

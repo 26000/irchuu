@@ -2,9 +2,6 @@ package upload
 
 import (
 	"bytes"
-	"github.com/26000/irchuu/config"
-	"github.com/26000/irchuu/paths"
-	"gopkg.in/telegram-bot-api.v4"
 	"io"
 	"io/ioutil"
 	"mime/multipart"
@@ -12,6 +9,11 @@ import (
 	"os"
 	"path"
 	"strings"
+
+	"github.com/26000/irchuu/config"
+	"github.com/26000/irchuu/paths"
+
+	tgbotapi "gopkg.in/telegram-bot-api.v4"
 )
 
 // Komf uploads a Telegram media file to a komf hosting. It doesn't check

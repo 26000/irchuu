@@ -1,11 +1,13 @@
 package irchuu
 
 import (
-	"github.com/26000/irchuu/config"
-	"github.com/26000/irchuu/relay"
-	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"
+
+	"github.com/26000/irchuu/config"
+	"github.com/26000/irchuu/relay"
+
+	"github.com/stretchr/testify/assert"
 )
 
 var (

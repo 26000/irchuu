@@ -1,10 +1,11 @@
 package config
 
 import (
-	"gopkg.in/ini.v1"
 	"html"
 	"io/ioutil"
 	"os"
+
+	"gopkg.in/ini.v1"
 )
 
 const (

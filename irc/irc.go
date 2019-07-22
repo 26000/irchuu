@@ -2,13 +2,8 @@
 package irchuu
 
 import (
-	"code.cloudfoundry.org/bytefmt"
 	"database/sql"
 	"fmt"
-	"github.com/26000/irchuu/config"
-	"github.com/26000/irchuu/db"
-	"github.com/26000/irchuu/relay"
-	"github.com/thoj/go-ircevent"
 	"log"
 	"os"
 	"strconv"
@@ -16,6 +11,13 @@ import (
 	"sync"
 	"time"
 	"unicode/utf8"
+
+	"github.com/26000/irchuu/config"
+	irchuubase "github.com/26000/irchuu/db"
+	"github.com/26000/irchuu/relay"
+
+	"code.cloudfoundry.org/bytefmt"
+	"github.com/thoj/go-ircevent"
 )
 
 // Launch starts the IRC bot and waits for messages.
@@ -397,20 +399,20 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay, db *sql.DB) {
 }
 
 // noticeOrMsg sends NOTICE if the second arg is true or PRIVMSG else.
-func noticeOrMsg(irc *irc.Connection, notice bool, target, message string) {
+func noticeOrMsg(irchuu *irc.Connection, notice bool, target, message string) {
 	if notice {
-		irc.Notice(target, message)
+		irchuu.Notice(target, message)
 	} else {
-		irc.Privmsg(target, message)
+		irchuu.Privmsg(target, message)
 	}
 }
 
 // noticeOrMsgf sends formatted NOTICE or PRIVMSG.
-func noticeOrMsgf(irc *irc.Connection, notice bool, target, format string, a ...interface{}) {
+func noticeOrMsgf(irchuu *irc.Connection, notice bool, target, format string, a ...interface{}) {
 	if notice {
-		irc.Noticef(target, format, a...)
+		irchuu.Noticef(target, format, a...)
 	} else {
-		irc.Privmsgf(target, format, a...)
+		irchuu.Privmsgf(target, format, a...)
 	}
 }
 
