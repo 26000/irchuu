@@ -51,6 +51,11 @@ func PopulateConfig(file string) error {
 
 # URI of your PostgreSQL database
 # if blank, logging and kicking Telegram users from IRC will be unavailable
+# (you will have to specify ?sslmode=disable if your database doesn't have TLS)
+#
+# examples:
+# postgres://user:password@example.org:5432/database
+# postgres://irchuu:irchuu@localhost/irchuu?sslmode=disable
 dburi = 
 
 # send usage statistics
