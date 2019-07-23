@@ -535,6 +535,7 @@ func listenService(r *relay.Relay, names *map[string]int) {
 		case "topic":
 			ircConn.SendRawf("TOPIC %v", ircConf.Channel)
 		case "shutdown":
+			irchuubase.Close()
 			ircConn.Quit()
 			time.Sleep(time.Second)
 			os.Exit(0)

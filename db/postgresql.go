@@ -154,3 +154,7 @@ func FindUser(name string) (id int, foundName string, err error) {
 func IsAvailable() bool {
 	return db != nil
 }
+
+func Close() error {
+	return db.Close()
+}
