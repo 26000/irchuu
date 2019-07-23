@@ -70,7 +70,7 @@ func processChatMessage(c *config.Telegram, message *tgbotapi.Message, logger *l
 			fmt.Sprintf("I'm not configured to work in this group (group id: %d).",
 				message.Chat.ID))
 		msg.ParseMode = "Markdown"
-		bot.Send(msg)
+		sendAndReport(msg)
 		bot.LeaveChat(tgbotapi.ChatConfig{ChatID: message.Chat.ID})
 		logger.Printf("Was added to %v #%v (%v)\n", message.Chat.Type,
 			message.Chat.ID, message.Chat.Title)
@@ -121,7 +121,7 @@ func listenService(r *relay.Relay, c *config.Telegram) {
 		switch f.Command {
 		case "announce":
 			m := tgbotapi.NewMessage(c.Group, f.Arguments[0])
-			bot.Send(m)
+			sendAndReport(m)
 		case "count":
 			count, err := bot.GetChatMembersCount(
 				tgbotapi.ChatConfig{ChatID: c.Group})
@@ -258,13 +258,13 @@ func processCmd(c *config.Telegram, message *tgbotapi.Message, cmd string, r *re
 				case "member":
 					m := tgbotapi.NewMessage(c.Group,
 						"Insufficient permission.")
-					bot.Send(m)
+					sendAndReport(m)
 				case "left":
 					fallthrough
 				case "kicked":
 					m := tgbotapi.NewMessage(c.Group,
 						">/kick "+arg+"\n\nOh you.")
-					bot.Send(m)
+					sendAndReport(m)
 				}
 			}
 		}
@@ -286,7 +286,7 @@ func processCmd(c *config.Telegram, message *tgbotapi.Message, cmd string, r *re
 		r.TeleServiceCh <- f
 	case "version":
 		m := tgbotapi.NewMessage(c.Group, "IRChuu v"+config.VERSION)
-		bot.Send(m)
+		sendAndReport(m)
 	case "help":
 		text := `Available commands:
 
@@ -304,7 +304,7 @@ func processCmd(c *config.Telegram, message *tgbotapi.Message, cmd string, r *re
 			text += "\n/bot [message] — send messages to IRC bots (no nickname prefix)"
 		}
 		m := tgbotapi.NewMessage(c.Group, text)
-		bot.Send(m)
+		sendAndReport(m)
 	}
 }
 
@@ -317,7 +317,7 @@ func processPM(c *config.Telegram, message *tgbotapi.Message, logger *log.Logger
 		"I only work in my group.\nIf you want to know more about me, "+
 			"visit my [GitHub](https://github.com/26000/irchuu).")
 	msg.ParseMode = "Markdown"
-	bot.Send(msg)
+	sendAndReport(msg)
 }
 
 // relayMessagesToTG listens to the channel and sends messages from IRC to
@@ -325,7 +325,7 @@ func processPM(c *config.Telegram, message *tgbotapi.Message, logger *log.Logger
 func relayMessagesToTG(r *relay.Relay, c *config.Telegram) {
 	for message := range r.IRCh {
 		m := formatTGMessage(message, c)
-		bot.Send(m)
+		sendAndReport(m)
 	}
 }
 
@@ -696,4 +696,13 @@ func surroundCodePoints(slice []uint16, offset int, length int, slice1 []uint16,
 	new = append(new, slice2...)
 	new = append(new, slice[offset+length:]...)
 	return new
+}
+
+// sendAndReport sends a message and reports errors if any.
+func sendAndReport(msg tgbotapi.MessageConfig) {
+	_, err := bot.Send(msg)
+	if err != nil {
+		logger := log.New(os.Stdout, " TG ", log.LstdFlags) // FIXME: not a good thing to do
+		logger.Printf("Sending message failed: %v\n", err)
+	}
 }
