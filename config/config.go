@@ -41,6 +41,11 @@ func ReadConfig(path string) (error, *Irc, *Telegram, *Irchuu) {
 		return err, irc, tg, irchuu
 	}
 
+	irc.IgnoreMap = map[string]bool{}
+	for _, nickname := range irc.IgnoreList {
+		irc.IgnoreMap[nickname] = true
+	}
+
 	return nil, irc, tg, irchuu
 }
 
@@ -191,7 +196,7 @@ allowstickers = true
 # how often to poll the server for the users list
 namesupdateinterval = 600 # (seconds)
 
-# maximum number of messages sent on 'hist'command in IRC, works only with dburi set
+# maximum number of messages sent on 'hist' command in IRC, works only with dburi set
 maxhist = 40
 
 # will send NOTICEs for private messages (help, hist, user count, etc) instead of PRIVMSGs
@@ -208,6 +213,9 @@ kickrejoin = true
 
 # announce the current topic to Telegram on join
 announcetopic = true
+
+# list of nicknames to ignore, i. e. messages by these users won't be relayed
+ignorelist = ignoredbotnickname1,ignoredbotnickname2
 `
 	return ioutil.WriteFile(file, []byte(config), os.FileMode(0600))
 }
@@ -251,6 +259,9 @@ type Irc struct {
 	RelayModes          bool
 	KickRejoin          bool
 	AnnounceTopic       bool
+
+	IgnoreList []string
+	IgnoreMap  map[string]bool
 
 	Debug bool
 }

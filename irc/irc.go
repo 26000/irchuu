@@ -257,6 +257,10 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay) {
 
 	ircConn.AddCallback("PRIVMSG", func(event *irc.Event) {
 		if event.Arguments[0] == c.Channel {
+			if c.IgnoreMap[event.Nick] {
+				return
+			}
+
 			f := formatMessage(event.Nick, event.Message(), "")
 			r.IRCh <- f
 			go irchuubase.Log(f, logger)
