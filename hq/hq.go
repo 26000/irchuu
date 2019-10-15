@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"regexp"
 	"strconv"
 
 	"github.com/26000/irchuu/config"
@@ -50,6 +51,7 @@ func Report(irchuu *config.Irchuu, tg *config.Telegram, irc *config.Irc) {
 	}
 	if layer > config.LAYER {
 		log.Println("New version available, please check https://github.com/26000/irchuu\n  or use `go get -u github.com/26000/irchuu` if using go < 1.11, `go get github.com/26000/irchuu` otherwise")
+		getChangelog(arr[2])
 	} else {
 		log.Println("Using the latest version of IRChuu.")
 	}
@@ -79,4 +81,35 @@ func sendTelemetry(uri string, tgGroup string, ircChannel string) {
 	} else if resp != nil && resp.Body != nil {
 		resp.Body.Close()
 	}
+}
+
+// getChangelog downloads a changelog from the server and prints new entries.
+func getChangelog(uri string) {
+	resp, err := http.Get(uri)
+	if err != nil {
+		log.Printf("Failed to download changelog: %v.\n",
+			err)
+		return
+	}
+
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		log.Printf("Failed to download changelog: %v.\n",
+			err)
+		return
+	}
+
+	changelogFull := string(body)
+	changelogRegexStr := fmt.Sprintf("\n--- VERSION[ 0-9\\.]+\\/ LAYER %v ---\n",
+		config.LAYER)
+	changelogRegex := regexp.MustCompile(changelogRegexStr)
+	changelogParts := changelogRegex.Split(changelogFull, 2)
+	if len(changelogParts) == 0 {
+		return
+	}
+
+	//            --- VERSION 0.11.0 / LAYER 17 --- (same length)
+	fmt.Printf("\n=========== CHANGELOG ===========\n%v\n=================================\n\n",
+		changelogParts[0])
 }
