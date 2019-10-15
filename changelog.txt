@@ -1,16 +1,22 @@
---- VERSION 0.11.0 / LAYER 17 ---
-Now IRChuu~ will show you changelogs when updates are available.
+--- VERSION 1.0.0  / LAYER 17 ---
+Now IRChuu~ will show you changelogs
+if updates are available.
 
 --- VERSION 0.10.1 / LAYER 16 ---
-The Telegram bot no longer leaves the group for which it isn't configured. New
-Komf versions are now supported.
+The Telegram bot no longer leaves
+the group for which it isn't
+configured. New Komf versions are
+now supported.
 
 --- VERSION 0.10.0 / LAYER 15 ---
-IRC ignore lists are now available. Add the following lines to the end of your
-config file to use them:
+IRC ignore lists are now available.
+Add the following lines to the end
+of your config file to use them:
 ```
 # list of nicknames to ignore, i. e. messages by these users won't be relayed
 ignorelist = ignoredbotnickname1,ignoredbotnickname2
 ```
 
-Panic on exit was fixed. Errors sending Telegram messages are now reported.
+Panic on exit was fixed. Errors
+sending Telegram messages are now
+reported.
