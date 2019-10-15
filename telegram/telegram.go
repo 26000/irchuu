@@ -71,7 +71,7 @@ func processChatMessage(c *config.Telegram, message *tgbotapi.Message, logger *l
 				message.Chat.ID))
 		msg.ParseMode = "Markdown"
 		sendAndReport(msg)
-		bot.LeaveChat(tgbotapi.ChatConfig{ChatID: message.Chat.ID})
+		//bot.LeaveChat(tgbotapi.ChatConfig{ChatID: message.Chat.ID}) // cannot readd, so better to no leave
 		logger.Printf("Was added to %v #%v (%v)\n", message.Chat.Type,
 			message.Chat.ID, message.Chat.Title)
 		return
