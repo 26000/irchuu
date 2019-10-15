@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"regexp"
 	"strings"
 
 	"github.com/26000/irchuu/config"
@@ -15,6 +16,8 @@ import (
 
 	tgbotapi "gopkg.in/telegram-bot-api.v4"
 )
+
+var downloadRegex = regexp.MustCompile("<a href=\".*\">(.*)</a>")
 
 // Komf uploads a Telegram media file to a komf hosting. It doesn't check
 // if the file was already uploaded, that is handeled by pomfs.
@@ -79,7 +82,7 @@ func uploadLocalFileKomf(file string, c *config.Telegram) (url string, err error
 		return
 	}
 
-	url = makeKomfDownloadUrl(c.KomfPublicURL, string(body))
+	url = makeKomfDownloadUrl(string(body))
 	return
 }
 
@@ -136,7 +139,7 @@ func uploadRemoteFileKomf(file string, localUrl string, id string, name string, 
 		return
 	}
 
-	url = makeKomfDownloadUrl(c.KomfPublicURL, string(body))
+	url = makeKomfDownloadUrl(string(body))
 
 	return
 }
@@ -153,12 +156,11 @@ func makeKomfUrl(komf string) string {
 }
 
 // makeKomfDownloadUrl appends a file path to a komf site link.
-func makeKomfDownloadUrl(komf string, file string) string {
-	if len(komf) < 2 {
+func makeKomfDownloadUrl(file string) string {
+	matches := downloadRegex.FindStringSubmatch(file)
+	if len(matches) < 2 {
 		return ""
 	}
-	if komf[len(komf)-1] == '/' {
-		return komf + file[1:]
-	}
-	return komf + file
+
+	return matches[1]
 }

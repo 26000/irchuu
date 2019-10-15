@@ -32,9 +32,6 @@ func ReadConfig(path string) (error, *Irc, *Telegram, *Irchuu) {
 
 	tg.Prefix = html.EscapeString(tg.Prefix)
 	tg.Postfix = html.EscapeString(tg.Postfix)
-	if tg.KomfPublicURL == "" {
-		tg.KomfPublicURL = tg.Komf
-	}
 
 	err = cfg.Section("irchuu").MapTo(irchuu)
 	if err != nil {
@@ -135,11 +132,6 @@ pomf = https://p.fuwafuwa.moe
 ## KOMF
 # a komf site url, you can set up your own: https://github.com/koto-bank/komf
 komf =
-
-# public url for your komf hosting, leave blank if it's same with above
-# (needed if the domain used for static is different or if you're uploading files
-# to a host in your local network)
-komfpublicurl =
 
 # how much time will the file be stored for? (day, week, month)
 komfdate = week
@@ -291,7 +283,6 @@ type Telegram struct {
 	DataDir       string
 	Pomf          string
 	Komf          string
-	KomfPublicURL string
 	KomfDate      string
 }
 
