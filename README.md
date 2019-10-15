@@ -68,7 +68,7 @@ For IRChuu to work, you will need to create a Telegram bot as it works through t
 5. Optionally, type `/setuserpic` and upload a cute picure for your relay
 6. Add your bot to your Telegram group (*Add members* and type the bot username there)
 7. Launch IRChuu~ (just type `irchuu` in console once more)
-8. Your bot will leave a message with the group id and quit. That's totally ok, just copy the id into your config file, stop IRChuu (hit <kbd>Ctrl</kbd>+<kbd>C</kbd> in the terminal where IRChuu~ is running)
+8. Your bot will leave a message with the group id. That's totally ok, just copy the id into your config file, stop IRChuu (hit <kbd>Ctrl</kbd>+<kbd>C</kbd> in the terminal where IRChuu~ is running)
 9. All set, now just launch IRChuu for the third time and enjoy!
 
 ### IRC setup
