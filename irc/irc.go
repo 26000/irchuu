@@ -107,6 +107,11 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay) {
 	ircConn.AddCallback("433", func(event *irc.Event) {
 		logger.Printf("Nickname already in use, changed to %v\n",
 			ircConn.GetNick())
+
+		if c.JoinDelay != 0 {
+			logger.Printf("Waiting %vs before joining the channel...", c.JoinDelay)
+			time.Sleep(time.Duration(c.JoinDelay) * time.Second)
+		}
 		ircConn.Join(fmt.Sprintf("%v %v", c.Channel, c.ChanPassword))
 	})
 
@@ -376,6 +381,10 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay) {
 			ircConn.Privmsgf("NickServ", "IDENTIFY %v", c.Password)
 		}
 
+		if c.JoinDelay != 0 {
+			logger.Printf("Waiting %vs before joining the channel...", c.JoinDelay)
+			time.Sleep(time.Duration(c.JoinDelay) * time.Second)
+		}
 		ircConn.Join(fmt.Sprintf("%v %v", c.Channel, c.ChanPassword))
 	})
 	/* CALLBACKS END */

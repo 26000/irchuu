@@ -153,6 +153,8 @@ sasl = false
 # must be surrounded with backticks
 channel = ` + "`" + `#irchuu` + "`" + `
 chanpassword =
+# how many seconds to wait before joining the channel
+joindelay = 0
 
 # colorize nicknames? (based on djb2)
 colorize = true
@@ -232,6 +234,7 @@ type Irc struct {
 
 	Channel      string
 	ChanPassword string
+	JoinDelay    int
 
 	Colorize      bool
 	Palette       []string
