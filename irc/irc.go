@@ -548,7 +548,7 @@ Loop:
 		case "ops":
 			ops := "Operators online: "
 			for name, rank := range *names {
-				if rank > 1 {
+				if rank >= 4 {
 					ops += name + " "
 				}
 			}
