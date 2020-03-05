@@ -50,7 +50,7 @@ func Report(irchuu *config.Irchuu, tg *config.Telegram, irc *config.Irc) {
 		return
 	}
 	if layer > config.LAYER {
-		log.Println("New version available, please check https://github.com/26000/irchuu\n  or use `go get -u github.com/26000/irchuu` if using go < 1.11, `go get github.com/26000/irchuu` otherwise")
+		log.Println("New version available, please check https://github.com/26000/irchuu\n  or use `go get -u github.com/26000/irchuu/...` to update")
 		getChangelog(arr[2])
 	} else {
 		log.Println("Using the latest version of IRChuu.")

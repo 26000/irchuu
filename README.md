@@ -17,24 +17,17 @@ A Telegram<->IRC transport.
 
 ## Setup
 ### Installation
-#### GOPATH mode, go < 1.11
 > **Note** IRChuu is written in Go and should work on all platforms supported by Go, including Linux, macOS and Windows. Nevertheless, I strongly recommend you using a Linux flavour to run IRChuu, or, as a last resort, macOS. IRChuu is only tested on Linux.
 
 You need to install [golang](https://golang.org/doc/install), [git](https://git-scm.com/downloads) and configure your `$GOPATH`. Just set `$GOPATH` environment variable to a writable directory and add `$GOPATH/bin` to your system `$PATH`.
 
 After that, install IRChuu~:
 ```
-$ go get github.com/26000/irchuu/cmd/irchuu
+$ go get github.com/26000/irchuu/...
 ```
 Upgrade with:
 ```
-$ go get -u github.com/26000/irchuu/cmd/irchuu
-```
-
-#### go modules mode, go >= 1.11
-Install and/or upgrade:
-```
-$ go get github.com/26000/irchuu/cmd/irchuu
+$ go get -u github.com/26000/irchuu/...
 ```
 
 ### Configuration
