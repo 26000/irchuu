@@ -231,6 +231,26 @@ func listenService(r *relay.Relay, c *config.Telegram) {
 					[]string{"unbanned " + f.Arguments[1] + "."},
 				}
 			}
+		case "status":
+			var text string
+
+			c := tgbotapi.ChatConfigWithUser{ChatID: c.Group, UserID: bot.Self.ID}
+			m, err := bot.GetChatMember(c)
+
+			if err != nil {
+				text = "Unable to get status: " + err.Error() + "."
+			} else {
+				if m.IsMember() {
+					text = "Telegram bot is online and present in group."
+				} else {
+					text = "Telegram bot is online, but not in group."
+				}
+			}
+
+			r.TeleServiceCh <- relay.ServiceMessage{
+				"announce",
+				[]string{text},
+			}
 		}
 	}
 }
@@ -293,7 +313,8 @@ func processCmd(c *config.Telegram, message *tgbotapi.Message, cmd string, r *re
 /help — show this help
 /version — show version info
 /topic — get IRC channel topic
-/ops — view OPs list`
+/ops — view OPs list
+/status — check the IRC bot status`
 		if c.AllowInvites {
 			text += "\n/invite [nick] — invite a user to the IRC channel"
 		}
@@ -305,6 +326,9 @@ func processCmd(c *config.Telegram, message *tgbotapi.Message, cmd string, r *re
 		}
 		m := tgbotapi.NewMessage(c.Group, text)
 		sendAndReport(m)
+	case "status":
+		f := relay.ServiceMessage{"status", nil}
+		r.TeleServiceCh <- f
 	}
 }
 

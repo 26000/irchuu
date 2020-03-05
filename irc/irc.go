@@ -190,8 +190,8 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay) {
 		if event.Nick == ircConn.GetNick() {
 			logger.Printf("Joined %v\n", event.Arguments[0])
 			if event.Arguments[0] == c.Channel {
-				go relayMessagesToIRC(r)
-				go listenService(r, &names)
+				go relayMessagesToIRC(r)    // FIXME: check if already started too
+				go listenService(r, &names) // FIXME: should be available regardless of whether joined or not
 				if !nameQueryStarted {
 					go updateNames()
 					nameQueryStarted = true
@@ -519,7 +519,7 @@ func listenService(r *relay.Relay, names *map[string]int) {
 	for f := range r.TeleServiceCh {
 		switch f.Command {
 		case "break":
-			break
+			break // FIXME: breaks the switch only
 		case "announce":
 			fallthrough
 		case "bot":
@@ -555,6 +555,37 @@ func listenService(r *relay.Relay, names *map[string]int) {
 			ircConn.Quit()
 			time.Sleep(time.Second)
 			os.Exit(0)
+		case "status":
+			if !ircConn.Connected() {
+				r.IRCServiceCh <- relay.ServiceMessage{"announce",
+					[]string{"IRC bot is offline."}}
+				break
+			}
+
+			var receivedInfo, inChannel bool
+			text := "IRC bot is online and "
+
+			cb := ircConn.AddCallback("319", func(event *irc.Event) {
+				receivedInfo = true
+				for _, v := range event.Arguments {
+					if v == ircConf.Channel {
+						inChannel = true
+					}
+				}
+			})
+
+			ircConn.Whois(ircConn.GetNick())
+			time.Sleep(time.Duration(1) * time.Second)
+			ircConn.RemoveCallback("319", cb)
+
+			if inChannel {
+				text += "present in channel."
+			} else {
+				text += "(almost certainly) not in channel."
+			}
+
+			r.IRCServiceCh <- relay.ServiceMessage{"announce",
+				[]string{text}}
 		}
 
 		if ircConf.FloodDelay != 0 {
@@ -722,14 +753,15 @@ func processCmd(event *irc.Event, r *relay.Relay, names *map[string]int) {
 	}
 	switch cmd[1] {
 	case "help":
-		texts := make([]string, 10)
+		texts := make([]string, 11)
 		texts[0] = "Available commands:"
 		texts[1] = ircConf.Nick + " \x02help\x0f — show this help"
 		texts[2] = ircConf.Nick + " \x02ops\x0f — show Telegram group ops"
 		texts[3] = ircConf.Nick + " \x02count\x0f — show Telegram group user count"
-		texts[8] = "\x02/ctcp " + ircConn.GetNick() +
+		texts[8] = ircConf.Nick + " \x02status\x0f — check Telegram bot status"
+		texts[9] = "\x02/ctcp " + ircConn.GetNick() +
 			" version\x0f — get version"
-		texts[9] = "Some of these commands are available in PM."
+		texts[10] = "Some of these commands are available in PM."
 		if ircConf.AllowStickers {
 			texts[7] = ircConf.Nick + " \x02sticker [id]\x0f — send a sticker"
 		}
@@ -785,6 +817,8 @@ func processCmd(event *irc.Event, r *relay.Relay, names *map[string]int) {
 				ircConn.Privmsg(ircConf.Channel, "Insufficient permission.")
 			}
 		}
+	case "status":
+		r.IRCServiceCh <- relay.ServiceMessage{"status", nil}
 	}
 }
 
