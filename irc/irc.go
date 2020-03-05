@@ -527,10 +527,11 @@ func relayMessagesToIRC(r *relay.Relay) {
 
 // listenService listens to service messages and executes them.
 func listenService(r *relay.Relay, names *map[string]int) {
+Loop:
 	for f := range r.TeleServiceCh {
 		switch f.Command {
 		case "break":
-			break // FIXME: breaks the switch only
+			break Loop
 		case "announce":
 			fallthrough
 		case "bot":
