@@ -1,3 +1,36 @@
+--- VERSION 1.1.0  / LAYER 18 ---
+Added an option to wait before
+joining a channel. Add the following
+to the end of your config file to
+use this feature:
+```
+# how many seconds to wait before joining the channel
+joindelay = 0
+```
+
+Added a `status` command. It returns
+IRC status in Telegram and vice
+versa. In case it says "unable to
+determine" in Telegram, add this to
+the end of your config file and
+adjust the timeout:
+```
+# how many seconds to wait for server to return the list of channels we're on
+# (needed for /status command in Telegram; increase if it says you're not in
+# channel when you are)
+statustimeout = 2
+```
+
+IRChuu~ now will not wait for IRC
+to disconnect and the database to
+close before exiting if you press
+Ctrl+C two times.
+
+Fixed IRChuu~ not exiting on Ctrl+C
+if it failed to join the channel.
+
+Fixed a couple other bugs.
+
 --- VERSION 1.0.0  / LAYER 17 ---
 Now IRChuu~ will show you changelogs
 if updates are available.
