@@ -68,6 +68,9 @@ func main() {
 
 func sigNotify(sigCh chan os.Signal, r *relay.Relay) {
 	sig := <-sigCh
-	log.Printf("Caught signal: %v, exiting...\n", sig)
+	log.Printf("Caught signal: %v, exiting... (press Ctrl + C again to force)\n", sig)
 	r.TeleAlwaysCh <- relay.ServiceMessage{"shutdown", []string{}}
+
+	sig = <-sigCh
+	os.Exit(1)
 }
