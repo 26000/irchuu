@@ -46,7 +46,7 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay) {
 	// 6 — owner (+q, ~)
 	names := make(map[string]int)
 	tempNames := make(map[string]int)
-	nameQueryStarted := false
+	var nameQueryStarted, messageLoopStarted, serviceLoopStarted bool
 
 	if c.SASL {
 		ircConn.UseSASL = true
@@ -190,8 +190,14 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay) {
 		if event.Nick == ircConn.GetNick() {
 			logger.Printf("Joined %v\n", event.Arguments[0])
 			if event.Arguments[0] == c.Channel {
-				go relayMessagesToIRC(r)    // FIXME: check if already started too
-				go listenService(r, &names) // FIXME: should be available regardless of whether joined or not
+				if !messageLoopStarted {
+					go relayMessagesToIRC(r)
+					messageLoopStarted = true
+				}
+				if !serviceLoopStarted {
+					go listenService(r, &names) // FIXME: should be available regardless of whether joined or not
+					serviceLoopStarted = true
+				}
 				if !nameQueryStarted {
 					go updateNames()
 					nameQueryStarted = true
@@ -306,8 +312,13 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay) {
 			if event.Arguments[1] == ircConn.GetNick() {
 				stopMsg := relay.Message{Extra: map[string]string{"break": "true"}}
 				stopCmd := relay.ServiceMessage{Command: "break"}
+
 				r.TeleCh <- stopMsg
 				r.TeleServiceCh <- stopCmd
+
+				messageLoopStarted = false
+				serviceLoopStarted = false
+
 				if c.KickRejoin {
 					ircConn.Join(fmt.Sprintf("%v %v", c.Channel, c.ChanPassword))
 				}
