@@ -328,7 +328,7 @@ func processCmd(c *config.Telegram, message *tgbotapi.Message, cmd string, r *re
 		sendAndReport(m)
 	case "status":
 		f := relay.ServiceMessage{"status", nil}
-		r.TeleServiceCh <- f
+		r.TeleAlwaysCh <- f
 	}
 }
 

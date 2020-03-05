@@ -194,10 +194,12 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay) {
 					go relayMessagesToIRC(r)
 					messageLoopStarted = true
 				}
+
 				if !serviceLoopStarted {
-					go listenService(r, &names) // FIXME: should be available regardless of whether joined or not
+					go listenService(r, &names)
 					serviceLoopStarted = true
 				}
+
 				if !nameQueryStarted {
 					go updateNames()
 					nameQueryStarted = true
@@ -400,6 +402,8 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay) {
 	})
 	/* CALLBACKS END */
 
+	go listenAlways(r)
+
 	err := ircConn.Connect(fmt.Sprintf("%v:%d", c.Server, c.Port))
 	if err != nil {
 		logger.Fatalf("Cannot connect: %v\n", err)
@@ -559,6 +563,18 @@ Loop:
 			}
 		case "topic":
 			ircConn.SendRawf("TOPIC %v", ircConf.Channel)
+		}
+
+		if ircConf.FloodDelay != 0 {
+			time.Sleep(time.Duration(ircConf.FloodDelay) * time.Millisecond)
+		}
+	}
+}
+
+// listenAlways listens to service messages from TeleAlwaysCh and executes them.
+func listenAlways(r *relay.Relay) {
+	for f := range r.TeleAlwaysCh {
+		switch f.Command {
 		case "shutdown":
 			if irchuubase.IsAvailable() {
 				irchuubase.Close()

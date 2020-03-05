@@ -8,17 +8,20 @@ func NewRelay() *Relay {
 	irCh := make(chan Message, 100)
 	teleSCh := make(chan ServiceMessage, 20)
 	ircSCh := make(chan ServiceMessage, 20)
-	return &Relay{teleCh, teleSCh, irCh, ircSCh}
+	teleACh := make(chan ServiceMessage, 20)
+	return &Relay{teleCh, teleSCh, irCh, ircSCh, teleACh}
 }
 
-// Relay contains three channels: for IRC messages read by Telegram, for
-// Telegram messages read by IRC and for both read by the logger.
-// ServiceCh's are for command messages.
+// Relay contains channels used by goroutines to exchange messages.
 type Relay struct {
 	TeleCh        chan Message
 	TeleServiceCh chan ServiceMessage
 	IRCh          chan Message
 	IRCServiceCh  chan ServiceMessage
+
+	// used for messages that need to be
+	// run even when IRC bot not in channel
+	TeleAlwaysCh chan ServiceMessage
 }
 
 // Message represents a generic message which may be either from TG or IRC.
