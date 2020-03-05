@@ -20,12 +20,20 @@ const (
 func ReadConfig(path string) (error, *Irc, *Telegram, *Irchuu) {
 	cfg, err := ini.InsensitiveLoad(path)
 	cfg.BlockMode = false
+
 	tg, irc, irchuu := new(Telegram), new(Irc), new(Irchuu)
+
 	err = cfg.Section("telegram").MapTo(tg)
 	if err != nil {
 		return err, irc, tg, irchuu
 	}
+
 	err = cfg.Section("irc").MapTo(irc)
+	if err != nil {
+		return err, irc, tg, irchuu
+	}
+
+	err = cfg.Section("irchuu").MapTo(irchuu)
 	if err != nil {
 		return err, irc, tg, irchuu
 	}
@@ -33,14 +41,13 @@ func ReadConfig(path string) (error, *Irc, *Telegram, *Irchuu) {
 	tg.Prefix = html.EscapeString(tg.Prefix)
 	tg.Postfix = html.EscapeString(tg.Postfix)
 
-	err = cfg.Section("irchuu").MapTo(irchuu)
-	if err != nil {
-		return err, irc, tg, irchuu
-	}
-
 	irc.IgnoreMap = map[string]bool{}
 	for _, nickname := range irc.IgnoreList {
 		irc.IgnoreMap[nickname] = true
+	}
+
+	if irc.StatusTimeout == 0 {
+		irc.StatusTimeout = 2
 	}
 
 	return nil, irc, tg, irchuu
@@ -210,6 +217,11 @@ announcetopic = true
 
 # list of nicknames to ignore, i. e. messages by these users won't be relayed
 ignorelist = ignoredbotnickname1,ignoredbotnickname2
+
+# how many seconds to wait for server to return the list of channels we're on
+# (needed for /status command in Telegram; increase if it says you're not in
+# channel when you are)
+statustimeout = 2
 `
 	return ioutil.WriteFile(file, []byte(config), os.FileMode(0600))
 }
@@ -257,6 +269,8 @@ type Irc struct {
 
 	IgnoreList []string
 	IgnoreMap  map[string]bool
+
+	StatusTimeout int
 
 	Debug bool
 }

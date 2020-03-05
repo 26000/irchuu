@@ -593,23 +593,30 @@ func listenAlways(r *relay.Relay) {
 			var receivedInfo, inChannel bool
 			text := "IRC bot is online and "
 
-			cb := ircConn.AddCallback("319", func(event *irc.Event) {
-				receivedInfo = true
+			chansCb := ircConn.AddCallback("319", func(event *irc.Event) {
 				for _, v := range event.Arguments {
-					if v == ircConf.Channel {
+					if strings.Trim(v, " ") == ircConf.Channel {
 						inChannel = true
 					}
 				}
 			})
 
-			ircConn.Whois(ircConn.GetNick())
-			time.Sleep(time.Duration(1) * time.Second)
-			ircConn.RemoveCallback("319", cb)
+			endCb := ircConn.AddCallback("318", func(event *irc.Event) {
+				receivedInfo = true
+			})
 
-			if inChannel {
+			ircConn.Whois(ircConn.GetNick())
+			time.Sleep(time.Duration(ircConf.StatusTimeout) * time.Second)
+			ircConn.RemoveCallback("319", chansCb)
+			ircConn.RemoveCallback("318", endCb)
+
+			switch {
+			case inChannel:
 				text += "present in channel."
-			} else {
+			case receivedInfo:
 				text += "(almost certainly) not in channel."
+			case !receivedInfo:
+				text += "unable to determine if it's in channel."
 			}
 
 			r.IRCServiceCh <- relay.ServiceMessage{"announce",
