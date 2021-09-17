@@ -1,3 +1,10 @@
+--- VERSION 1.1.1  / LAYER 19 ---
+Fixed a bug which caused IRChuu~
+to fail connecting to IRC. (You
+don't have to upgrade if you don't
+use TLS or don't experience this
+issue.)
+
 --- VERSION 1.1.0  / LAYER 18 ---
 Added an option to wait before
 joining a channel. Add the following
