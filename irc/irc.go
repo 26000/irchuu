@@ -2,6 +2,7 @@
 package irchuu
 
 import (
+	"crypto/tls"
 	"database/sql"
 	"fmt"
 	"log"
@@ -34,8 +35,12 @@ func Launch(c *config.Irc, wg *sync.WaitGroup, r *relay.Relay) {
 
 	logger := log.New(os.Stdout, "IRC ", log.LstdFlags)
 	ircConn = irc.IRC(c.Nick, "IRChuu")
-	ircConn.UseTLS = c.SSL
 	ircConn.Password = c.ServerPassword
+
+	ircConn.UseTLS = c.SSL
+	if ircConn.UseTLS {
+		ircConn.TLSConfig = &tls.Config{ServerName: c.Server}
+	}
 
 	// 0 — not on channel
 	// 1 — normal
