@@ -23,12 +23,10 @@ You need to install [golang](https://golang.org/doc/install), [git](https://git-
 
 After that, install IRChuu~:
 ```
-$ go get github.com/26000/irchuu/...
+$ go install github.com/26000/irchuu/...@latest
 ```
-Upgrade with:
-```
-$ go get -u github.com/26000/irchuu/...
-```
+
+Use the same command to upgrade it.
 
 ### Configuration
 Run IRChuu~ for the first time and it will create a configuration file (you can also use `-data` and `-config` command-line arguments to specify a custom path):
