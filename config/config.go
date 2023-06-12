@@ -130,11 +130,7 @@ baseurl = http://localhost:8080
 
 ## POMF
 # the pomf clone url
-# the following should work with irchuu:
-# - https://p.fuwafuwa.moe
-# - https://cocaine.ninja
-# and many more. But some are retarded and won't.
-pomf = https://p.fuwafuwa.moe
+pomf =
 
 ## KOMF
 # a komf site url, you can set up your own: https://github.com/koto-bank/komf
